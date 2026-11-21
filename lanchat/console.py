@@ -82,7 +82,7 @@ class Console:
             with patch_stdout():
                 self.app.start()
                 self.events.put("[*] Gõ /help để xem các lệnh")
-                session = PromptSession()
+                session = PromptSession(erase_when_done=True)
                 while True:
                     try:
                         line = session.prompt("> ")
