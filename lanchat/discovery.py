@@ -49,7 +49,7 @@ class Discovery:
                     sock.sendto(json.dumps(payload, ensure_ascii=False).encode("utf-8"),
                                 (self.broadcast, UDP_PORT))
                 except OSError as exc:
-                    self.notify(f"[!] Không gửi được UDP broadcast: {exc}")
+                    self.notify(f"[!] Failed to send UDP broadcast: {exc}")
                 self.stop_event.wait(3)
 
     def _listen(self):

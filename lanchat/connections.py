@@ -69,7 +69,7 @@ class ConnectionManager:
         conn.close()
         if removed and self.app.chats.reset_if_current(conn.peer_id):
             p = self.app.peers.get(conn.peer_id)
-            self.app.notice(f"[*] Mất kết nối với {p.name if p else conn.peer_id}. Trở lại màn hình chính.")
+            self.app.notice(f"[*] Disconnected from {p.name if p else conn.peer_id}. Returned to the main prompt.")
 
     def _read_loop(self, conn):
         try:
@@ -87,12 +87,12 @@ class ConnectionManager:
                     if active:
                         self.app.notice(f"[{name}] {text}")
                     else:
-                        self.app.notice(f"[*] Tin mới từ {name} ({count} chưa đọc)")
+                        self.app.notice(f"[*] New message from {name} ({count} unread)")
                 else:
                     raise ProtocolError("Unexpected chat frame")
         except (EOFError, OSError, ProtocolError) as exc:
             if not self.app.stop_event.is_set() and self.get(conn.peer_id) is conn:
-                self.app.notice(f"[!] Kết nối chat bị ngắt: {exc}")
+                self.app.notice(f"[!] Chat connection lost: {exc}")
         finally:
             self._on_disconnect(conn)
 

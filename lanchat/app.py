@@ -14,7 +14,7 @@ class LanChatApp:
     def __init__(self, name, port=5000, broadcast="255.255.255.255", notify=print,
                  downloads="downloads"):
         if not name or len(name) > 60:
-            raise ValueError("Tên phải có từ 1 đến 60 ký tự")
+            raise ValueError("Display name must be between 1 and 60 characters")
         self.identity = uuid.uuid4().hex
         self.name = name
         self.port = port
@@ -42,7 +42,7 @@ class LanChatApp:
             raise ValueError("Status must be online or away")
         with self.status_lock:
             self._status = status
-        self.notice(f"[*] Trạng thái: {status}")
+        self.notice(f"[*] Status: {status}")
 
     def hello(self, kind):
         return {"type": "HELLO", "version": 1, "id": self.identity,
@@ -119,7 +119,7 @@ class LanChatApp:
                 self.transfers.receive_file(sock, hello)
         except (OSError, EOFError, ProtocolError) as exc:
             if not self.stop_event.is_set():
-                self.notice(f"[!] Kết nối TCP không hợp lệ từ {addr[0]}: {exc}")
+                self.notice(f"[!] Invalid TCP connection from {addr[0]}: {exc}")
         finally:
             if owned:
                 sock.close()
@@ -129,9 +129,9 @@ class LanChatApp:
     def select_chat(self, peer):
         self.connections.connect(peer)
         unseen = self.chats.select(peer.peer_id)
-        self.notice(f"[*] Đang chat với {peer.name} ({peer.ip}:{peer.port})")
+        self.notice(f"[*] Chatting with {peer.name} ({peer.ip}:{peer.port})")
         if unseen:
-            self.notice(f"[*] {len(unseen)} tin nhắn chưa đọc:")
+            self.notice(f"[*] {len(unseen)} unread message(s):")
             for name, msg in unseen:
                 self.notice(f"[{name}] {msg}")
 
@@ -139,9 +139,9 @@ class LanChatApp:
         with self.chats.lock:
             peer_id = self.chats.current
         if peer_id is None:
-            raise ValueError("Chưa chọn người chat. Dùng /chat <tên|số>.")
+            raise ValueError("No chat selected. Use /chat <name|number>.")
         if len(text.encode("utf-8")) > 65536:
-            raise ValueError("Tin nhắn quá dài (tối đa 64 KiB)")
+            raise ValueError("Message is too long (maximum 64 KiB)")
         self.connections.send_message(peer_id, text)
         self.chats.sent(peer_id, self.name, text)
         self.notice(f"[{self.name}] {text}")
@@ -150,10 +150,10 @@ class LanChatApp:
         with self.chats.lock:
             peer_id = self.chats.current
         if peer_id is None:
-            raise ValueError("Chưa chọn người chat. Dùng /chat trước.")
+            raise ValueError("No chat selected. Use /chat first.")
         peer = self.peers.get(peer_id)
         if peer is None:
-            raise ValueError("Peer đã offline")
+            raise ValueError("Peer is offline")
         self.transfers.send_file(peer, path)
 
     def stop(self):

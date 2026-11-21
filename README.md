@@ -41,7 +41,7 @@ UDP discovery sends JSON presence every **3 seconds** to UDP port **9999**. Peer
 | `/help` | Show all commands |
 | `/quit` | Exit the program |
 
-The CLI uses `prompt_toolkit` to redraw an unfinished input line when notifications arrive. Messages from other peers are retained with unread counts until you select that chat.
+All built-in CLI messages, help text, status notifications, and errors are in English. User messages and display names are transmitted without translation. The CLI uses `prompt_toolkit` to redraw an unfinished input line when notifications arrive. Messages from other peers are retained with unread counts until you select that chat.
 
 Downloaded files are written in `downloads/`. Transfers use unique temporary `.part` files and only publish a completed file. If a filename already exists, `(1)`, `(2)` etc. is appended.
 

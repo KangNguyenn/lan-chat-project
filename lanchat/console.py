@@ -27,7 +27,7 @@ class Console:
             return peers[index] if 0 <= index < len(peers) else None
         found = [peer for peer in peers if peer.name == target]
         if len(found) > 1:
-            raise ValueError("Tên bị trùng, hãy chọn bằng số từ /list")
+            raise ValueError("Multiple users have this name. Select one by number from /list")
         return found[0] if found else None
 
     def _process(self, line):
@@ -38,22 +38,31 @@ class Console:
         cmd, _, param = line.partition(" ")
         cmd, param = cmd.lower(), param.strip()
         if cmd == "/help":
-            self.events.put("/list · /chat <tên|số> · /send <file> · /leave · "
-                            "/status <online|away> · /help · /quit")
+            self.events.put(
+                "Commands:\n"
+                "  /list                  Show online users with number, name, IP and status\n"
+                "  /chat <name|number>    Open a chat with the selected user (TCP connection)\n"
+                "  <any text>             Send a message to the current chat partner\n"
+                "  /send <file>           Send a file to the current chat partner\n"
+                "  /leave                 Close the current chat\n"
+                "  /status <online|away>  Change your status (sent via UDP)\n"
+                "  /help                  Show all commands\n"
+                "  /quit                  Exit the program"
+            )
         elif cmd == "/list":
             peers = self.app.peers.list()
             if not peers:
-                self.events.put("[*] Chưa có ai online")
+                self.events.put("[*] No users online")
             for i, peer in enumerate(peers, 1):
                 self.events.put(f"{i}. {peer.name} ({peer.ip}:{peer.port}) - {peer.status}")
         elif cmd == "/chat":
             peer = self._find_peer(param) if param else None
             if not peer:
-                raise ValueError("Không tìm thấy peer. Dùng /list để xem danh sách")
+                raise ValueError("User not found. Use /list to see available users")
             self.app.select_chat(peer)
         elif cmd == "/send":
             if not param:
-                raise ValueError("Dùng: /send <đường_dẫn_file>")
+                raise ValueError("Usage: /send <file>")
             self.app.send_file(param.strip('"').strip("'"))
         elif cmd == "/status":
             self.app.set_status(param)
@@ -61,13 +70,13 @@ class Console:
             peer_id = self.app.chats.leave()
             if peer_id:
                 self.app.connections.close_peer(peer_id)
-                self.events.put("[*] Đã rời phiên chat")
+                self.events.put("[*] Left the current chat")
             else:
-                self.events.put("[*] Bạn chưa mở phiên chat nào")
+                self.events.put("[*] No active chat to leave")
         elif cmd == "/quit":
             return False
         else:
-            raise ValueError("Lệnh không hợp lệ. Dùng /help")
+            raise ValueError("Unknown command. Use /help to see available commands")
         return True
 
     def run(self):
@@ -75,13 +84,13 @@ class Console:
             from prompt_toolkit import PromptSession
             from prompt_toolkit.patch_stdout import patch_stdout
         except ImportError as exc:
-            raise RuntimeError("Cần cài prompt_toolkit: pip install -r requirements.txt") from exc
+            raise RuntimeError("prompt_toolkit is required. Install dependencies: python -m pip install -r requirements.txt") from exc
         self.printer = threading.Thread(target=self._print_events, daemon=True)
         self.printer.start()
         try:
             with patch_stdout():
                 self.app.start()
-                self.events.put("[*] Gõ /help để xem các lệnh")
+                self.events.put("[*] Type /help to see available commands")
                 session = PromptSession(erase_when_done=True)
                 while True:
                     try:

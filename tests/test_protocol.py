@@ -11,13 +11,13 @@ class ProtocolTests(unittest.TestCase):
         a, b = socket.socketpair()
         try:
             def send():
-                raw = '{"type":"MSG","text":"Chào 👋"}'.encode()
+                raw = '{"type":"MSG","text":"Hello 👋"}'.encode()
                 data = struct.pack("!I", len(raw)) + raw
                 for byte in data:
                     a.sendall(bytes([byte]))
             t = threading.Thread(target=send)
             t.start()
-            self.assertEqual(recv_frame(b)["text"], "Chào 👋")
+            self.assertEqual(recv_frame(b)["text"], "Hello 👋")
             t.join()
         finally:
             a.close()

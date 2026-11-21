@@ -35,10 +35,10 @@ class TransferManager:
     def send_file(self, peer, path):
         path = pathlib.Path(path).expanduser()
         if not path.is_file():
-            raise FileNotFoundError(f"File không tồn tại: {path}")
+            raise FileNotFoundError(f"File not found: {path}")
         size = path.stat().st_size
         if size > MAX_FILE_SIZE:
-            raise ValueError("File vượt quá giới hạn 2 GiB")
+            raise ValueError("File exceeds the 2 GiB size limit")
         thread = threading.Thread(target=self._send_worker, args=(peer, path, size), daemon=True)
         with self.lock:
             self.threads.add(thread)
@@ -74,7 +74,7 @@ class TransferManager:
                         break
                     sock.sendall(data)
                     sent += len(data)
-                    self._progress("Gửi", path.name, sent, size, progress)
+                    self._progress("Sending", path.name, sent, size, progress)
             if sent != size:
                 raise OSError("File changed while being sent")
             # A receiving peer must acknowledge saving the complete file.
@@ -82,9 +82,9 @@ class TransferManager:
             ack = recv_frame(sock)
             if ack.get("type") != "FILE_ACK" or ack.get("transfer_id") != transfer_id or not ack.get("ok"):
                 raise OSError(f"Receiver did not confirm the file: {ack.get('error', 'unknown error')}")
-            self.app.notice(f"[*] Gửi file thành công: {path.name}")
+            self.app.notice(f"[*] File sent successfully: {path.name}")
         except (OSError, EOFError, ValueError, ProtocolError) as exc:
-            self.app.notice(f"[!] Gửi file {path.name} thất bại: {exc}")
+            self.app.notice(f"[!] Failed to send {path.name}: {exc}")
         finally:
             if sock is not None:
                 self._remove_sock(sock)
@@ -112,7 +112,7 @@ class TransferManager:
                 raise ProtocolError("Invalid transfer ID")
             self.downloads.mkdir(parents=True, exist_ok=True)
             partial = self.downloads / ("." + uuid.uuid4().hex + ".part")
-            self.app.notice(f"[*] Bắt đầu nhận file {name} ({size} bytes)")
+            self.app.notice(f"[*] Receiving file {name} ({size} bytes)")
             progress = [-10, time.monotonic()]
             received = 0
             sock.settimeout(30)
@@ -121,7 +121,7 @@ class TransferManager:
                     data = recv_exact(sock, min(CHUNK_SIZE, size - received))
                     stream.write(data)
                     received += len(data)
-                    self._progress("Nhận", name, received, size, progress)
+                    self._progress("Receiving", name, received, size, progress)
             with self.lock:
                 final = self.downloads / name
                 suffix = 1
@@ -131,9 +131,9 @@ class TransferManager:
                 partial.replace(final)
             partial = None
             send_frame(sock, {"type": "FILE_ACK", "transfer_id": transfer_id, "ok": True})
-            self.app.notice(f"[*] Nhận file thành công: {final}")
+            self.app.notice(f"[*] File received successfully: {final}")
         except (OSError, EOFError, ValueError, ProtocolError) as exc:
-            self.app.notice(f"[!] Nhận file thất bại: {exc}")
+            self.app.notice(f"[!] File reception failed: {exc}")
             if transfer_id:
                 try:
                     send_frame(sock, {"type": "FILE_ACK", "transfer_id": transfer_id,

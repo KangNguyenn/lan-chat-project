@@ -33,9 +33,9 @@ class PeerStore:
         with self._lock:
             prev = self._peers.get(peer_id)
             if prev is None:
-                change = f"[*] {name} đã online ({ip}:{port})"
+                change = f"[*] {name} is online ({ip}:{port})"
             elif prev.status != status:
-                change = f"[*] {name} đổi trạng thái: {status}"
+                change = f"[*] {name} changed status to {status}"
             self._peers[peer_id] = Peer(peer_id, name, ip, port, status, time.monotonic())
         if change:
             self._notify(change)
@@ -47,7 +47,7 @@ class PeerStore:
             for p in gone:
                 self._peers.pop(p.peer_id, None)
         for p in gone:
-            self._notify(f"[*] {p.name} đã offline (timeout)")
+            self._notify(f"[*] {p.name} is offline (timeout)")
 
     def get(self, peer_id):
         with self._lock:
