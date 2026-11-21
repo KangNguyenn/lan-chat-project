@@ -64,6 +64,7 @@ class ChatStore:
         self.lock = threading.RLock()
         self.current = None
         self.histories = {}
+        self.directions = {}
         self.unread = {}
 
     def select(self, peer_id):
@@ -81,8 +82,10 @@ class ChatStore:
     def receive(self, peer_id, name, text):
         with self.lock:
             self.histories.setdefault(peer_id, []).append((name, text))
+            self.directions.setdefault(peer_id, []).append("incoming")
             if len(self.histories[peer_id]) > 1000:
                 del self.histories[peer_id][:-1000]
+                del self.directions[peer_id][:-1000]
             active = self.current == peer_id
             if not active:
                 inbox = self.unread.setdefault(peer_id, [])
@@ -93,8 +96,21 @@ class ChatStore:
     def sent(self, peer_id, name, text):
         with self.lock:
             self.histories.setdefault(peer_id, []).append((name, text))
+            self.directions.setdefault(peer_id, []).append("outgoing")
             if len(self.histories[peer_id]) > 1000:
                 del self.histories[peer_id][:-1000]
+                del self.directions[peer_id][:-1000]
+
+    def snapshot(self, peer_id):
+        with self.lock:
+            history = self.histories.get(peer_id, ())
+            directions = self.directions.get(peer_id, ())
+            return [(name, message, direction) for (name, message), direction
+                    in zip(history, directions)]
+
+    def unread_counts(self):
+        with self.lock:
+            return {peer_id: len(messages) for peer_id, messages in self.unread.items()}
 
     def reset_if_current(self, peer_id):
         with self.lock:

@@ -1,0 +1,258 @@
+"""Compact Tkinter chat interface; all network I/O is delegated to ChatController."""
+import queue
+import threading
+import tkinter as tk
+from tkinter import filedialog, messagebox, ttk
+
+
+class LanChatWindow:
+    def __init__(self, root, controller):
+        self.root = root
+        self.controller = controller
+        self.app = controller.app
+        self.selected_id = None
+        self.known_peers = {}
+        self.transfers = {}
+        self.closed = False
+        self.stop_thread = None
+
+        root.title(f"LAN Chat — {self.app.name}")
+        root.geometry("880x570")
+        root.minsize(620, 400)
+        root.protocol("WM_DELETE_WINDOW", self.close)
+
+        outer = ttk.Frame(root, padding=12)
+        outer.pack(fill="both", expand=True)
+        heading = ttk.Frame(outer)
+        heading.pack(fill="x", pady=(0, 10))
+        ttk.Label(heading, text="LAN Chat", font=("TkDefaultFont", 16, "bold")).pack(side="left")
+        ttk.Label(heading, text=f"{self.app.name}  •  Online").pack(side="right")
+
+        split = ttk.Panedwindow(outer, orient="horizontal")
+        split.pack(fill="both", expand=True)
+        sidebar = ttk.Frame(split, padding=(0, 6, 6, 0))
+        chat = ttk.Frame(split, padding=(9, 6, 0, 0))
+        split.add(sidebar, weight=1)
+        split.add(chat, weight=3)
+
+        ttk.Label(sidebar, text="Peers", font=("TkDefaultFont", 11, "bold")).pack(
+            anchor="w", pady=(0, 6))
+        self.peer_list = ttk.Treeview(sidebar, columns=("status", "unread"),
+                                      show="tree headings", selectmode="browse")
+        self.peer_list.heading("#0", text="Name")
+        self.peer_list.heading("status", text="Status")
+        self.peer_list.heading("unread", text="New")
+        self.peer_list.column("#0", minwidth=90, width=125)
+        self.peer_list.column("status", minwidth=50, width=65, stretch=False)
+        self.peer_list.column("unread", minwidth=32, width=34, stretch=False, anchor="center")
+        self.peer_list.tag_configure("offline", foreground="#888888")
+        self.peer_list.pack(fill="both", expand=True)
+        self.peer_list.bind("<<TreeviewSelect>>", self._select_peer)
+
+        self.peer_title = tk.StringVar(value="Select a peer to start chatting")
+        self.peer_address = tk.StringVar(value="")
+        ttk.Label(chat, textvariable=self.peer_title,
+                  font=("TkDefaultFont", 12, "bold")).pack(anchor="w")
+        ttk.Label(chat, textvariable=self.peer_address).pack(anchor="w", pady=(2, 8))
+
+        transcript = ttk.Frame(chat)
+        transcript.pack(fill="both", expand=True)
+        self.messages = tk.Text(transcript, wrap="word", state="disabled", relief="flat",
+                                padx=12, pady=12, borderwidth=1, highlightthickness=1)
+        self.messages.tag_configure("outgoing", justify="right", foreground="#1766bb",
+                                     spacing1=8, spacing3=5)
+        self.messages.tag_configure("incoming", justify="left", spacing1=8, spacing3=5)
+        self.messages.pack(side="left", fill="both", expand=True)
+        scroll = ttk.Scrollbar(transcript, orient="vertical", command=self.messages.yview)
+        scroll.pack(side="right", fill="y")
+        self.messages.configure(yscrollcommand=scroll.set)
+
+        transfer = ttk.Frame(chat)
+        transfer.pack(fill="x", pady=(8, 5))
+        self.transfer_text = tk.StringVar(value="")
+        ttk.Label(transfer, textvariable=self.transfer_text).pack(side="left")
+        self.transfer_bar = ttk.Progressbar(transfer, maximum=100, length=120)
+        self.transfer_bar.pack(side="right")
+
+        controls = ttk.Frame(chat)
+        controls.pack(fill="x", pady=(4, 2))
+        self.attach_button = ttk.Button(controls, text="Attach", command=self._attach,
+                                        state="disabled")
+        self.attach_button.pack(side="left")
+        self.message_input = ttk.Entry(controls, state="disabled")
+        self.message_input.pack(side="left", fill="x", expand=True, padx=(8, 8))
+        self.message_input.bind("<Return>", self._send)
+        self.send_button = ttk.Button(controls, text="Send", command=self._send,
+                                      state="disabled")
+        self.send_button.pack(side="right")
+
+        self.status_text = tk.StringVar(value="Searching for peers on the local network...")
+        ttk.Label(outer, textvariable=self.status_text).pack(anchor="w", pady=(8, 0))
+        self._tick()
+
+    def _sync_peers(self):
+        peers = self.app.peers.list()
+        online = {p.peer_id: p for p in peers}
+        for peer in peers:
+            self.known_peers[peer.peer_id] = (peer.name, peer.ip, peer.port, peer.status)
+        unread = self.app.chats.unread_counts()
+        for peer_id, (name, ip, port, status) in list(self.known_peers.items()):
+            if peer_id not in online:
+                status = "offline"
+                self.known_peers[peer_id] = (name, ip, port, status)
+            values = (status.capitalize(), unread.get(peer_id, 0) or "")
+            tags = ("offline",) if status == "offline" else ()
+            if self.peer_list.exists(peer_id):
+                self.peer_list.item(peer_id, text=name, values=values, tags=tags)
+            else:
+                self.peer_list.insert("", "end", iid=peer_id, text=name,
+                                      values=values, tags=tags)
+        self._update_header()
+
+    def _update_header(self):
+        if self.selected_id is None:
+            return
+        peer = self.known_peers.get(self.selected_id)
+        if not peer:
+            return
+        name, ip, port, status = peer
+        self.peer_title.set(name)
+        self.peer_address.set(f"{ip}:{port}  •  {status.capitalize()}")
+        online = status != "offline"
+        self.message_input.configure(state="normal" if online else "disabled")
+        self.send_button.configure(state="normal" if online else "disabled")
+        self.attach_button.configure(state="normal" if online else "disabled")
+
+    def _select_peer(self, _event=None):
+        selection = self.peer_list.selection()
+        if not selection:
+            return
+        self.selected_id = selection[0]
+        self.controller.select(self.selected_id)
+        self._update_header()
+        self._show_messages(scroll=True)
+        self._show_transfer()
+        if self.known_peers[self.selected_id][3] != "offline":
+            self.message_input.focus_set()
+
+    def _show_messages(self, scroll=False):
+        if self.selected_id is None:
+            return
+        near_bottom = self.messages.yview()[1] > 0.96
+        history = self.app.chats.snapshot(self.selected_id)
+        self.messages.configure(state="normal")
+        self.messages.delete("1.0", "end")
+        for name, message, direction in history:
+            label = "You" if direction == "outgoing" else name
+            self.messages.insert("end", f"{label}: {message}\n", direction)
+        self.messages.configure(state="disabled")
+        if scroll or near_bottom:
+            self.messages.see("end")
+
+    def _show_transfer(self):
+        state = self.transfers.get(self.selected_id)
+        if state is None:
+            self.transfer_text.set("")
+            self.transfer_bar.configure(value=0)
+            return
+        self.transfer_text.set(state["text"])
+        self.transfer_bar.configure(value=state["percent"])
+
+    def _send(self, _event=None):
+        if self.selected_id is None or self.app.peers.get(self.selected_id) is None:
+            return "break"
+        content = self.message_input.get()
+        if not content.strip():
+            return "break"
+        self.message_input.delete(0, "end")
+        self.controller.send_message(self.selected_id, content)
+        return "break"
+
+    def _attach(self):
+        if self.selected_id is None or self.app.peers.get(self.selected_id) is None:
+            return
+        path = filedialog.askopenfilename(parent=self.root, title="Select a file to send")
+        if path:
+            self.controller.send_file(self.selected_id, path)
+
+    def _handle_event(self, event):
+        kind = event["type"]
+        if kind == "notice":
+            message = event["text"]
+            if message.startswith("[!") or message.startswith("[*]"):
+                self.status_text.set(message)
+        elif kind in ("message_received", "message_sent"):
+            if kind == "message_received" and event["peer_id"] == self.selected_id:
+                self.app.chats.select(self.selected_id)
+            if event["peer_id"] == self.selected_id:
+                self._show_messages()
+        elif kind in ("transfer_started", "transfer_progress", "transfer_completed", "transfer_failed"):
+            peer_id = event["peer_id"]
+            previous = self.transfers.get(peer_id, {"percent": 0})
+            name = event["name"]
+            direction = event["direction"]
+            if kind == "transfer_started":
+                percentage = 0
+                text = f"{direction} {name}: 0%"
+                active = True
+            elif kind == "transfer_progress":
+                percentage = event["percent"]
+                text = f"{direction} {name}: {percentage}%"
+                active = True
+            elif kind == "transfer_completed":
+                percentage = 100
+                text = f"{direction} {name}: complete"
+                active = False
+            else:
+                percentage = previous["percent"]
+                text = f"{direction} {name}: failed — {event['error']}"
+                active = False
+            self.transfers[peer_id] = {"percent": percentage, "text": text,
+                                        "active": active}
+            if peer_id == self.selected_id:
+                self._show_transfer()
+        elif kind == "action_error":
+            self.status_text.set(f"[!] {event['action']}: {event['error']}")
+            if event.get("action") == "send message":
+                if (event.get("peer_id") == self.selected_id
+                        and not self.message_input.get()):
+                    self.message_input.insert(0, event.get("message", ""))
+        elif kind == "connection_closed":
+            self.status_text.set("[*] Chat connection closed")
+
+    def _tick(self):
+        if self.closed:
+            return
+        try:
+            for _ in range(200):
+                try:
+                    event = self.controller.events.get_nowait()
+                except queue.Empty:
+                    break
+                self._handle_event(event)
+        finally:
+            self._sync_peers()
+            self.root.after(150, self._tick)
+
+    def close(self):
+        if self.closed:
+            return
+        if any(info["active"] for info in self.transfers.values()):
+            if not messagebox.askyesno("Quit LAN Chat",
+                                       "A file transfer is in progress. Quit and cancel it?",
+                                       parent=self.root):
+                return
+        self.closed = True
+        self.message_input.configure(state="disabled")
+        self.send_button.configure(state="disabled")
+        self.attach_button.configure(state="disabled")
+        self.status_text.set("Closing connections...")
+        self.stop_thread = threading.Thread(target=self.controller.stop, daemon=True)
+        self.stop_thread.start()
+        self._wait_for_shutdown()
+
+    def _wait_for_shutdown(self):
+        if self.stop_thread.is_alive():
+            self.root.after(100, self._wait_for_shutdown)
+        else:
+            self.root.destroy()

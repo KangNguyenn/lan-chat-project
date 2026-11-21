@@ -44,16 +44,20 @@ class TransferManager:
             self.threads.add(thread)
         thread.start()
 
-    def _progress(self, direction, name, done, size, state):
+    def _progress(self, peer_id, direction, name, done, size, state):
         percent = 100 if size == 0 else int(done * 100 / size)
         now = time.monotonic()
         if percent == 100 or percent >= state[0] + 10 or now - state[1] > 1:
             state[:] = [percent, now]
             self.app.notice(f"[*] {direction} {name}: {percent}% ({done}/{size} bytes)")
+            self.app.emit("transfer_progress", peer_id=peer_id, direction=direction,
+                          name=name, done=done, size=size, percent=percent)
 
     def _send_worker(self, peer, path, size):
         sock = None
         try:
+            self.app.emit("transfer_started", peer_id=peer.peer_id, direction="Sending",
+                          name=path.name, size=size)
             sock = socket.create_connection((peer.ip, peer.port), timeout=5)
             self._add_sock(sock)
             sock.settimeout(8)
@@ -74,7 +78,7 @@ class TransferManager:
                         break
                     sock.sendall(data)
                     sent += len(data)
-                    self._progress("Sending", path.name, sent, size, progress)
+                    self._progress(peer.peer_id, "Sending", path.name, sent, size, progress)
             if sent != size:
                 raise OSError("File changed while being sent")
             # A receiving peer must acknowledge saving the complete file.
@@ -83,8 +87,12 @@ class TransferManager:
             if ack.get("type") != "FILE_ACK" or ack.get("transfer_id") != transfer_id or not ack.get("ok"):
                 raise OSError(f"Receiver did not confirm the file: {ack.get('error', 'unknown error')}")
             self.app.notice(f"[*] File sent successfully: {path.name}")
+            self.app.emit("transfer_completed", peer_id=peer.peer_id, direction="Sending",
+                          name=path.name, size=size)
         except (OSError, EOFError, ValueError, ProtocolError) as exc:
             self.app.notice(f"[!] Failed to send {path.name}: {exc}")
+            self.app.emit("transfer_failed", peer_id=peer.peer_id, direction="Sending",
+                          name=path.name, error=str(exc))
         finally:
             if sock is not None:
                 self._remove_sock(sock)
@@ -113,6 +121,8 @@ class TransferManager:
             self.downloads.mkdir(parents=True, exist_ok=True)
             partial = self.downloads / ("." + uuid.uuid4().hex + ".part")
             self.app.notice(f"[*] Receiving file {name} ({size} bytes)")
+            self.app.emit("transfer_started", peer_id=hello["id"], direction="Receiving",
+                          name=name, size=size)
             progress = [-10, time.monotonic()]
             received = 0
             sock.settimeout(30)
@@ -121,7 +131,7 @@ class TransferManager:
                     data = recv_exact(sock, min(CHUNK_SIZE, size - received))
                     stream.write(data)
                     received += len(data)
-                    self._progress("Receiving", name, received, size, progress)
+                    self._progress(hello["id"], "Receiving", name, received, size, progress)
             with self.lock:
                 final = self.downloads / name
                 suffix = 1
@@ -132,8 +142,12 @@ class TransferManager:
             partial = None
             send_frame(sock, {"type": "FILE_ACK", "transfer_id": transfer_id, "ok": True})
             self.app.notice(f"[*] File received successfully: {final}")
+            self.app.emit("transfer_completed", peer_id=hello["id"], direction="Receiving",
+                          name=name, size=size, path=str(final))
         except (OSError, EOFError, ValueError, ProtocolError) as exc:
             self.app.notice(f"[!] File reception failed: {exc}")
+            self.app.emit("transfer_failed", peer_id=hello["id"], direction="Receiving",
+                          name=locals().get("name", "file"), error=str(exc))
             if transfer_id:
                 try:
                     send_frame(sock, {"type": "FILE_ACK", "transfer_id": transfer_id,

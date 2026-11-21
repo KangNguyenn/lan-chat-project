@@ -62,12 +62,16 @@ class ConnectionManager:
 
     def _on_disconnect(self, conn):
         removed = False
+        was_current = False
         with self.lock:
             if self.connections.get(conn.peer_id) is conn:
                 self.connections.pop(conn.peer_id, None)
+                was_current = self.app.chats.reset_if_current(conn.peer_id)
                 removed = True
         conn.close()
-        if removed and self.app.chats.reset_if_current(conn.peer_id):
+        if removed:
+            self.app.emit("connection_closed", peer_id=conn.peer_id)
+        if was_current:
             p = self.app.peers.get(conn.peer_id)
             self.app.notice(f"[*] Disconnected from {p.name if p else conn.peer_id}. Returned to the main prompt.")
 
@@ -84,6 +88,8 @@ class ConnectionManager:
                     peer = self.app.peers.get(conn.peer_id)
                     name = peer.name if peer else conn.peer_id[:8]
                     active, count = self.app.chats.receive(conn.peer_id, name, text)
+                    self.app.emit("message_received", peer_id=conn.peer_id,
+                                  name=name, text=text, unread=count)
                     if active:
                         self.app.notice(f"[{name}] {text}")
                     else:

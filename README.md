@@ -1,34 +1,50 @@
-# LAN Chat & File Sharing (CLI)
+# LAN Chat & File Sharing
 
-Peer-to-peer LAN chat using native Python TCP and UDP sockets. No central server and no GUI.
+A peer-to-peer LAN messenger with a lightweight **Tkinter GUI by default** and an optional terminal client. Both interfaces use the same UDP discovery, TCP chat and file-transfer protocol. No central server or saved chat history.
 
 ## Requirements
 
-- Python **3.10+** on Windows or Linux
-- Machines on the same LAN/Wi-Fi with UDP broadcasts and TCP connections permitted by the firewall
-- Install the only CLI dependency: `python -m pip install -r requirements.txt`
+- Python **3.10+** on Windows or Linux.
+- Two computers on the same LAN, with UDP broadcasts and incoming TCP connections allowed by the firewall.
+- `python -m pip install -r requirements.txt` (for the CLI's `prompt_toolkit`).
+- Tkinter for GUI mode: usually included with Python on Windows. On Linux install the OS package if missing (`python3-tk` on Debian/Ubuntu, `tk` on Arch/CachyOS).
 
 ## Run
 
-On different computers, **the same TCP port is fine**, because each has a different IP:
+**The `--name` argument is mandatory for both GUI and CLI.** All network configuration is passed on the command line; the GUI has no login, username prompt or settings dialog.
 
 ```bash
-python main.py --name Khang --port 5000
-python main.py --name Minh --port 5000
+# GUI (default)
+python main.py --name Khang
+
+# CLI
+python main.py --nogui --name Huy
+
+# Other shared arguments
+python main.py --name Khang --port 5001 --bcast 192.168.1.255 --downloads ./received
 ```
 
-On one computer, use **different TCP ports**, for example:
+| Argument | Meaning | Default |
+| --- | --- | --- |
+| `--name NAME` | Display name (required) | None |
+| `--port PORT` | TCP listening port | `5000` |
+| `--bcast ADDRESS` | UDP broadcast destination | `255.255.255.255` |
+| `--downloads PATH` | Directory for received files | `downloads` |
+| `--nogui` | Force terminal interface | Off |
 
-```bash
-python main.py --name Khang --port 5001 --bcast 127.255.255.255
-python main.py --name Minh --port 5002 --bcast 127.255.255.255
-```
+If the graphical environment cannot be initialized (for example on a headless Linux server or without Tkinter), the program falls back to the CLI **when an interactive terminal is available**. It does not hide or convert runtime GUI bugs into CLI fallback. Use `--nogui` to skip GUI initialization completely.
 
-A single machine with several UDP sockets bound to `9999` depends on OS socket reuse semantics; test the behavior on your OS. Use the same LAN and two real computers for the final demo.
+### GUI
 
-UDP discovery sends JSON presence every **3 seconds** to UDP port **9999**. Peers disappear after **10 seconds** without a heartbeat.
+- Select an online peer in the sidebar; the TCP connection is opened in a background worker.
+- Type a message and press **Enter** or click **Send**.
+- Use **Attach** to choose a file. The progress bar shows the most recent transfer for the selected peer.
+- The peer list displays online/away status and unread message counts. Offline peers previously seen in this session are shown in gray so you can still inspect their in-memory conversation.
+- Close the window to quit and close network connections. Closing during an active transfer cancels it.
 
-## Console commands
+The GUI is **only for chat and file sharing**. It does not change the username, port, broadcast address, download folder or status. Run the CLI `/status` command if status changes are needed.
+
+### CLI commands
 
 | Command | Description |
 | --- | --- |
@@ -41,36 +57,43 @@ UDP discovery sends JSON presence every **3 seconds** to UDP port **9999**. Peer
 | `/help` | Show all commands |
 | `/quit` | Exit the program |
 
-All built-in CLI messages, help text, status notifications, and errors are in English. User messages and display names are transmitted without translation. The CLI uses `prompt_toolkit` to redraw an unfinished input line when notifications arrive. Messages from other peers are retained with unread counts until you select that chat.
+## Two-machine testing
 
-Downloaded files are written in `downloads/`. Transfers use unique temporary `.part` files and only publish a completed file. If a filename already exists, `(1)`, `(2)` etc. is appended.
+On **different computers**, both can listen on TCP `5000`, because their IP addresses differ. On the **same computer**, use different TCP ports, for example:
 
-## Protocol
+```bash
+python main.py --name Khang --port 5001 --bcast 127.255.255.255
+python main.py --nogui --name Huy --port 5002 --bcast 127.255.255.255
+```
 
-- UDP: one JSON datagram with `{type:"HELLO",id,name,port,status}`; `id` is a random per-instance ID so two peers can have the same name or IP.
-- TCP: 4-byte unsigned big-endian JSON payload length + UTF-8 JSON object. The maximum JSON frame is 256 KiB.
-- TCP chat session: `HELLO` handshake identifying peer ID and kind `chat`, then `MSG`, `BYE`.
-- TCP file session: separate TCP connection to the same listening port; `HELLO` with kind `file`, `FILE_META` JSON, raw file stream of exactly the announced size, `FILE_ACK` upon successful save.
-- Every peer listens for inbound TCP connections; no central chat server is used.
+Multiple UDP listeners bound to port `9999` on the same host depend on the OS's socket reuse semantics. A real two-computer LAN test is recommended. Capture `udp.port == 9999` for discovery broadcasts and `tcp.port == 5000` (or your chosen port) for the TCP three-way handshake in Wireshark.
+
+## Networking and storage
+
+- UDP: JSON `HELLO` datagram with `id`, `name`, `port`, `status`; broadcast every **3 seconds** on UDP port **9999**. Peer timeout is **10 seconds**.
+- TCP: 4-byte unsigned big-endian JSON frame length followed by UTF-8 JSON. Maximum frame: 256 KiB.
+- Chat: TCP `HELLO` handshake, then `MSG` / `BYE` frames.
+- Files: independent TCP connection, `FILE_META`, raw bytes, and `FILE_ACK` upon successful save. Received files are written via temporary `.part` files and renamed only when complete. Name collisions get suffixes like `(1)`.
+- Peers get a fresh random UUID on each launch. A restarted peer is a **new session**.
+- **Messages exist only in RAM. Quitting permanently clears local chat history.** Received files remain in the configured download folder.
+- Traffic is not encrypted; this is a LAN networking assignment, not a secure messenger.
 
 ## Tests
 
-Run local automated tests:
-
 ```bash
 python -m unittest discover -s tests -v
+python -m compileall -q main.py lanchat
 ```
 
-For the required live demo, test **two real computers** on the same Wi-Fi/LAN, while capturing UDP broadcast traffic and TCP 3-way handshake in Wireshark. Windows Firewall (or Linux firewall) must allow inbound UDP/9999 and TCP on your selected port.
+For the final live demo, verify **GUI ↔ GUI**, **GUI ↔ CLI** and **CLI ↔ CLI** on two machines. Ensure that firewalls allow UDP/9999 and the configured TCP port.
 
-## Known constraints
+## Packaging
 
-- A LAN assignment, not secure against malicious LAN peers; data is not encrypted.
-- Does not relay traffic across routers, NATs, VPNs, or isolated Wi-Fi clients.
-- Each process requires its own listening TCP port if they share a host/IP. Two different computers can use port `5000` simultaneously.
-- Discovery on one host using `127.255.255.255` is platform dependent. Use two actual computers for final verification.
-- Terminal UI requires `prompt_toolkit` (installed above). No GUI is included.
+Build on each target OS with PyInstaller; builds are OS-specific:
 
-## Project report checklist
+```bash
+python -m pip install pyinstaller
+python -m PyInstaller --onefile --name LANChat main.py
+```
 
-Include architecture and threading diagrams, UDP/TCP message formats, troubleshooting decisions, test scenarios, Wireshark screenshots for UDP broadcast and TCP handshake, and a 10-minute demo using two computers.
+Use a **console-enabled executable** so command-line arguments, `--nogui` and CLI fallback remain usable. Launch it from a terminal, e.g. `./dist/LANChat --name Khang` (or `dist\\LANChat.exe --name Khang` on Windows). A Windows `--windowed` build cannot provide an interactive CLI fallback.
