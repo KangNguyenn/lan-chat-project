@@ -30,16 +30,16 @@ UDP discovery sends JSON presence every **3 seconds** to UDP port **9999**. Peer
 
 ## Console commands
 
-| Command | Action |
+| Command | Description |
 | --- | --- |
-| `/list` | List peers, IPv4 address, TCP port, status |
-| `/chat <name|number>` | Select a peer; connects via TCP if necessary |
-| `any text` | Send chat text to the selected peer |
-| `/send <filepath>` | Send file to selected peer (separate TCP stream) |
-| `/leave` | Leave current chat |
-| `/status online` / `/status away` | Set availability |
-| `/help` | Print commands |
-| `/quit` | Stop the app |
+| `/list` | Show online users with number, name, IP and status |
+| `/chat <name\|number>` | Open a chat with the selected user (TCP connection) |
+| `<any text>` | Send a message to the current chat partner |
+| `/send <file>` | Send a file to the current chat partner |
+| `/leave` | Close the current chat |
+| `/status <online\|away>` | Change your status (sent via UDP) |
+| `/help` | Show all commands |
+| `/quit` | Exit the program |
 
 The CLI uses `prompt_toolkit` to redraw an unfinished input line when notifications arrive. Messages from other peers are retained with unread counts until you select that chat.
 
