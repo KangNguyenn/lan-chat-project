@@ -38,7 +38,7 @@ when used by itself.
 | Argument | Meaning | Default |
 | --- | --- | --- |
 | `--name NAME` | Display name, 1–60 characters | Required |
-| `--port PORT` | TCP listening port (use `0` for automatic assignment) | `5000` |
+| `--port PORT` | TCP listening port | `0` (assigned by the OS) |
 | `--bcast ADDRESS` | UDP broadcast destination | `255.255.255.255` |
 | `--downloads PATH` | Directory for received files | `downloads` |
 | `--nogui` | Force terminal interface | Off |
@@ -72,14 +72,14 @@ Name and network settings are configured at startup. Run the CLI `/status` comma
 
 ## Two-machine testing
 
-On **different computers**, both can listen on TCP `5000`, because their IP addresses differ. On the **same computer**, use different TCP ports, for example:
+The OS assigns a free TCP port by default, including when you run two instances on the same computer. To use fixed TCP ports for a same-computer test, choose a different port for each instance:
 
 ```bash
 python main.py --name Khang --port 5001 --bcast 127.255.255.255
 python main.py --nogui --name Huy --port 5002 --bcast 127.255.255.255
 ```
 
-Multiple UDP listeners bound to port `9999` on the same host depend on the OS's socket reuse semantics. A real two-computer LAN test is recommended. Capture `udp.port == 9999` for discovery broadcasts and `tcp.port == 5000` (or your chosen port) for the TCP three-way handshake in Wireshark.
+Multiple UDP listeners bound to port `9999` on the same host depend on the OS's socket reuse semantics. A real two-computer LAN test is recommended. Capture `udp.port == 9999` for discovery broadcasts and `tcp.port == 5001` for the TCP three-way handshake in Wireshark, substituting the actual listening port.
 
 ## Networking and storage
 

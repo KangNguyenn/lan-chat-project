@@ -5,7 +5,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class StartupConfig:
     name: str
-    port: int = 5000
+    port: int = 0
     bcast: str = "255.255.255.255"
     downloads: str = "downloads"
 

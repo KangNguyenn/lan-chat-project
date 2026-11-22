@@ -14,12 +14,12 @@ Skip setup:     python main.py --name Alice
 Skip setup CLI: python main.py --nogui --name Bob --port 5001
 Optional flags: --port 5001 --bcast 192.168.1.255 --downloads ./received
 When passing any configuration flag, include --name.
-Use different TCP ports for two instances on one PC, or use 0 for automatic assignment.
+The default TCP port is 0 (assigned by the OS). Use --port to choose a fixed port.
 
 TEST
 Automated: python -m unittest discover -s tests -v
 Manual: Run two peers on the same LAN; test chat and file transfer
         with GUI-GUI, GUI-CLI, and CLI-CLI.
 Wireshark: udp.port == 9999 (discovery)
-           tcp.port == 5000 (TCP handshake; adjust if using --port)
+           tcp.port == 5001 (TCP handshake example; substitute the actual listening port)
 Allow UDP 9999 and the chosen TCP port through the firewall.

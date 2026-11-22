@@ -72,7 +72,7 @@ def main(argv=None):
         argument_default=argparse.SUPPRESS,
     )
     parser.add_argument("--name", help="Display name (required when passing configuration flags)")
-    parser.add_argument("--port", help=f"TCP listening port (default: {StartupConfig.port}, 0 for automatic)")
+    parser.add_argument("--port", help=f"TCP listening port (default: {StartupConfig.port}, assigned by the OS)")
     parser.add_argument("--bcast", help=f"UDP broadcast address (default: {StartupConfig.bcast})")
     parser.add_argument("--downloads", help=f"Directory for received files (default: {StartupConfig.downloads})")
     parser.add_argument("--nogui", action="store_true", help="Use the terminal interface")

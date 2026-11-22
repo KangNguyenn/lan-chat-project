@@ -22,7 +22,7 @@ class EntryPointTests(unittest.TestCase):
         with patch("main.run_gui") as gui, patch("main.Console") as console:
             main.main(["--name", "Alice", "--nogui"])
         gui.assert_not_called()
-        console.assert_called_once_with("Alice", 5000, "255.255.255.255", "downloads")
+        console.assert_called_once_with("Alice", 0, "255.255.255.255", "downloads")
         console.return_value.run.assert_called_once()
 
     def test_no_flags_opens_gui_setup(self):
@@ -32,7 +32,7 @@ class EntryPointTests(unittest.TestCase):
         prompt.assert_not_called()
 
     def test_config_flags_require_name(self):
-        for flag, value in (("--port", "5000"), ("--bcast", "255.255.255.255"),
+        for flag, value in (("--port", "0"), ("--bcast", "255.255.255.255"),
                             ("--downloads", "downloads")):
             with self.subTest(flag=flag), patch("main.run_gui") as gui:
                 with self.assertRaises(SystemExit) as caught:
@@ -69,7 +69,7 @@ class EntryPointTests(unittest.TestCase):
                 patch("main.sys.stdin.isatty", return_value=True), \
                 patch("builtins.input", side_effect=["Alice", "", "", ""]), patch("main.Console") as console:
             main.main([])
-        console.assert_called_once_with("Alice", 5000, "255.255.255.255", "downloads")
+        console.assert_called_once_with("Alice", 0, "255.255.255.255", "downloads")
 
     def test_gui_unavailable_falls_back_only_with_terminal(self):
         with patch("main.run_gui", side_effect=main.GuiUnavailable("no display")), \
