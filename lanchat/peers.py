@@ -15,10 +15,11 @@ class Peer:
 
 
 class PeerStore:
-    def __init__(self, notify):
+    def __init__(self, notify, emit=None):
         self._peers = {}
         self._lock = threading.RLock()
         self._notify = notify
+        self._emit = emit
 
     def observe(self, peer_id, name, ip, port, status="online"):
         if not isinstance(peer_id, str) or not 1 <= len(peer_id) <= 80:
@@ -39,6 +40,8 @@ class PeerStore:
             self._peers[peer_id] = Peer(peer_id, name, ip, port, status, time.monotonic())
         if change:
             self._notify(change)
+            if self._emit is not None:
+                self._emit("peer_status", name=name, status=status)
 
     def expire(self, timeout=10):
         now = time.monotonic()
@@ -48,6 +51,8 @@ class PeerStore:
                 self._peers.pop(p.peer_id, None)
         for p in gone:
             self._notify(f"[*] {p.name} is offline (timeout)")
+            if self._emit is not None:
+                self._emit("peer_status", name=p.name, status="offline")
 
     def get(self, peer_id):
         with self._lock:

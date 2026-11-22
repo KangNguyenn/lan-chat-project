@@ -12,7 +12,7 @@ A peer-to-peer LAN messenger with a lightweight **Tkinter GUI by default** and a
 ## Run
 
 Start the app without configuration flags to enter startup settings. The GUI opens
-a form with name and TCP port. Expand **Advanced settings** to set the broadcast
+a form with name and TCP port. Expand **Cài đặt nâng cao** to set the broadcast
 address and downloads folder. In the terminal, press Enter to accept each optional
 default or Ctrl+C to cancel setup.
 
@@ -50,12 +50,12 @@ configuration flags if provided and prompts for settings otherwise.
 ### GUI
 
 - Select an online peer in the sidebar; the TCP connection is opened in a background worker.
-- Type a message and press **Enter** or click **Send**.
-- Use **Attach** to choose a file. The progress bar shows the most recent transfer for the selected peer.
+- Type a message and press **Enter** or click **Gửi**.
+- Use **Đính kèm** to choose a file. The progress bar shows the most recent transfer for the selected peer.
 - The peer list displays online/away status and unread message counts. Offline peers previously seen in this session are shown in gray so you can still inspect their in-memory conversation.
 - Close the window to quit and close network connections. Closing during an active transfer cancels it.
 
-Name and network settings are configured at startup. Click the status button in the top right to switch between **Online** and **Away** during a session.
+Name and network settings are configured at startup. Click the status button in the top right to switch between **Trực tuyến** and **Vắng mặt** during a session.
 
 ### CLI commands
 

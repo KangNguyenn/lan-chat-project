@@ -7,13 +7,14 @@ UDP_PORT = 9999
 
 
 class Discovery:
-    def __init__(self, identity, name, port, status, peers, notify, broadcast, stop_event):
+    def __init__(self, identity, name, port, status, peers, notify, broadcast, stop_event, emit=None):
         self.identity = identity
         self.name = name
         self.port = port
         self.status = status
         self.peers = peers
         self.notify = notify
+        self.emit = emit
         self.broadcast = broadcast
         self.stop_event = stop_event
         self.sock = None
@@ -50,6 +51,8 @@ class Discovery:
                                 (self.broadcast, UDP_PORT))
                 except OSError as exc:
                     self.notify(f"[!] Failed to send UDP broadcast: {exc}")
+                    if self.emit is not None:
+                        self.emit("discovery_error")
                 self.stop_event.wait(3)
 
     def _listen(self):

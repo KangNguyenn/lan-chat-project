@@ -25,7 +25,7 @@ class LanChatApp:
         self.stop_event = threading.Event()
         self.status_lock = threading.Lock()
         self._status = "online"
-        self.peers = PeerStore(notify)
+        self.peers = PeerStore(notify, self.emit)
         self.chats = ChatStore()
         self.connections = ConnectionManager(self)
         self.transfers = TransferManager(self, downloads)
@@ -80,7 +80,7 @@ class LanChatApp:
             self.port = server.getsockname()[1]
             self.listener = server
             self.discovery = Discovery(self.identity, self.name, self.port, self.get_status,
-                                       self.peers, self.notice, self.broadcast, self.stop_event)
+                                       self.peers, self.notice, self.broadcast, self.stop_event, self.emit)
             self.discovery.start()
             self.accept_thread = threading.Thread(target=self._accept_loop, daemon=True)
             self.accept_thread.start()
@@ -125,6 +125,7 @@ class LanChatApp:
         except (OSError, EOFError, ProtocolError) as exc:
             if not self.stop_event.is_set():
                 self.notice(f"[!] Invalid TCP connection from {addr[0]}: {exc}")
+                self.emit("incoming_error", ip=addr[0])
         finally:
             if owned:
                 sock.close()

@@ -46,7 +46,8 @@ def run_gui(config):
                     raise
                 controller.stop()
                 controller = None
-                form.show_error(f"Unable to start: {exc}")
+                form.show_error("Không thể khởi động. Hãy kiểm tra cổng TCP và thử lại. "
+                                f"({exc})")
             else:
                 break
 

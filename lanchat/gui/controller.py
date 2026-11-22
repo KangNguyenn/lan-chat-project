@@ -1,21 +1,20 @@
 """Thread-safe adapter between the Tkinter UI and the shared networking backend."""
+import logging
 import queue
 import threading
 
 from ..app import LanChatApp
+from ..protocol import ProtocolError
 
 
 class ChatController:
     def __init__(self, name, port, broadcast, downloads):
         self.events = queue.Queue()
-        self.app = LanChatApp(name, port, broadcast, notify=self._notice,
+        self.app = LanChatApp(name, port, broadcast, notify=logging.getLogger(__name__).debug,
                               downloads=downloads, event_sink=self.events.put)
         self.closing = threading.Event()
         self.workers = set()
         self.workers_lock = threading.Lock()
-
-    def _notice(self, message):
-        self.events.put({"type": "notice", "text": message})
 
     def start(self):
         self.app.start()
@@ -27,7 +26,8 @@ class ChatController:
         def task():
             try:
                 func(*args)
-            except (OSError, EOFError, ValueError, ConnectionError) as exc:
+            except (OSError, EOFError, ValueError, ProtocolError) as exc:
+                logging.getLogger(__name__).debug("GUI action failed: %s", exc)
                 if not self.closing.is_set():
                     self.events.put({"type": "action_error", "action": action,
                                      "error": str(exc), **extra})
