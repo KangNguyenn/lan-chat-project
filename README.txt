@@ -8,10 +8,13 @@ INSTALL
    Arch/CachyOS: sudo pacman -S tk
 
 RUN
-GUI (default): python main.py --name Alice
-CLI:           python main.py --name Bob --nogui
+GUI setup:      python main.py
+Terminal setup: python main.py --nogui
+Skip setup:     python main.py --name Alice
+Skip setup CLI: python main.py --nogui --name Bob --port 5001
 Optional flags: --port 5001 --bcast 192.168.1.255 --downloads ./received
---name is required. Use different TCP ports for two instances on one PC.
+When passing any configuration flag, include --name.
+Use different TCP ports for two instances on one PC, or use 0 for automatic assignment.
 
 TEST
 Automated: python -m unittest discover -s tests -v

@@ -11,28 +11,41 @@ A peer-to-peer LAN messenger with a lightweight **Tkinter GUI by default** and a
 
 ## Run
 
-**The `--name` argument is mandatory for both GUI and CLI.** All network configuration is passed on the command line; the GUI has no login, username prompt or settings dialog.
+Start the app without configuration flags to enter startup settings. The GUI opens
+a form with name and TCP port. Expand **Advanced settings** to set the broadcast
+address and downloads folder. In the terminal, press Enter to accept each optional
+default or Ctrl+C to cancel setup.
 
 ```bash
-# GUI (default)
+# GUI setup (default)
+python main.py
+
+# Terminal setup
+python main.py --nogui
+
+# Skip setup and open chat directly
 python main.py --name Khang
+python main.py --nogui --name Huy --port 5001
 
-# CLI
-python main.py --nogui --name Huy
-
-# Other shared arguments
+# Other shared options
 python main.py --name Khang --port 5001 --bcast 192.168.1.255 --downloads ./received
 ```
 
+When passing any configuration flag, include `--name`. Omitted optional flags use
+their defaults. `--nogui` selects the terminal interface and still opens setup
+when used by itself.
+
 | Argument | Meaning | Default |
 | --- | --- | --- |
-| `--name NAME` | Display name (required) | None |
-| `--port PORT` | TCP listening port | `5000` |
+| `--name NAME` | Display name, 1–60 characters | Required |
+| `--port PORT` | TCP listening port (use `0` for automatic assignment) | `5000` |
 | `--bcast ADDRESS` | UDP broadcast destination | `255.255.255.255` |
 | `--downloads PATH` | Directory for received files | `downloads` |
 | `--nogui` | Force terminal interface | Off |
 
-If the graphical environment cannot be initialized (for example on a headless Linux server or without Tkinter), the program falls back to the CLI **when an interactive terminal is available**. It does not hide or convert runtime GUI bugs into CLI fallback. Use `--nogui` to skip GUI initialization completely.
+If Tkinter is unavailable or the display cannot be initialized, the program
+falls back to the CLI when an interactive terminal is available. The CLI uses
+configuration flags if provided and prompts for settings otherwise.
 
 ### GUI
 
@@ -42,7 +55,7 @@ If the graphical environment cannot be initialized (for example on a headless Li
 - The peer list displays online/away status and unread message counts. Offline peers previously seen in this session are shown in gray so you can still inspect their in-memory conversation.
 - Close the window to quit and close network connections. Closing during an active transfer cancels it.
 
-The GUI is **only for chat and file sharing**. It does not change the username, port, broadcast address, download folder or status. Run the CLI `/status` command if status changes are needed.
+Name and network settings are configured at startup. Run the CLI `/status` command to change your status during a session.
 
 ### CLI commands
 

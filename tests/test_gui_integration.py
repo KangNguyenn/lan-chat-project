@@ -25,10 +25,51 @@ class EntryPointTests(unittest.TestCase):
         console.assert_called_once_with("Alice", 5000, "255.255.255.255", "downloads")
         console.return_value.run.assert_called_once()
 
-    def test_no_name_is_an_argument_error(self):
-        with self.assertRaises(SystemExit) as caught:
+    def test_no_flags_opens_gui_setup(self):
+        with patch("main.run_gui") as gui, patch("main.prompt_startup_config") as prompt:
             main.main([])
-        self.assertEqual(caught.exception.code, 2)
+        gui.assert_called_once_with(None)
+        prompt.assert_not_called()
+
+    def test_config_flags_require_name(self):
+        for flag, value in (("--port", "5000"), ("--bcast", "255.255.255.255"),
+                            ("--downloads", "downloads")):
+            with self.subTest(flag=flag), patch("main.run_gui") as gui:
+                with self.assertRaises(SystemExit) as caught:
+                    main.main([flag, value])
+                self.assertEqual(caught.exception.code, 2)
+                gui.assert_not_called()
+
+    def test_nogui_alone_prompts_and_retries_invalid_fields(self):
+        with patch("main.run_gui") as gui, patch("main.Console") as console, \
+                patch("main.sys.stdin.isatty", return_value=True), \
+                patch("builtins.input", side_effect=[" ", " Alice ", "65536", "0", "", "received"]) as read:
+            main.main(["--nogui"])
+        gui.assert_not_called()
+        self.assertEqual(read.call_count, 6)
+        console.assert_called_once_with("Alice", 0, "255.255.255.255", "received")
+        console.return_value.run.assert_called_once()
+
+    def test_nogui_setup_can_be_canceled(self):
+        with patch("main.sys.stdin.isatty", return_value=True), \
+                patch("builtins.input", side_effect=KeyboardInterrupt), patch("main.Console") as console:
+            main.main(["--nogui"])
+        console.assert_not_called()
+
+    def test_nogui_setup_requires_interactive_terminal(self):
+        with patch("main.sys.stdin.isatty", return_value=False), \
+                patch("main.prompt_startup_config") as prompt:
+            with self.assertRaises(SystemExit) as caught:
+                main.main(["--nogui"])
+        self.assertEqual(caught.exception.code, 1)
+        prompt.assert_not_called()
+
+    def test_gui_fallback_prompts_when_no_configuration_was_passed(self):
+        with patch("main.run_gui", side_effect=main.GuiUnavailable("no display")), \
+                patch("main.sys.stdin.isatty", return_value=True), \
+                patch("builtins.input", side_effect=["Alice", "", "", ""]), patch("main.Console") as console:
+            main.main([])
+        console.assert_called_once_with("Alice", 5000, "255.255.255.255", "downloads")
 
     def test_gui_unavailable_falls_back_only_with_terminal(self):
         with patch("main.run_gui", side_effect=main.GuiUnavailable("no display")), \

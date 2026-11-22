@@ -3,6 +3,25 @@ import queue
 import threading
 
 from .app import LanChatApp
+from .startup import StartupConfig, parse_name, parse_port
+
+
+def _prompt_value(label, parse, default=""):
+    while True:
+        value = input(label)
+        try:
+            return parse(value or default)
+        except ValueError as exc:
+            print(f"[!] {exc}")
+
+
+def prompt_startup_config():
+    print("LAN Chat — Startup configuration")
+    name = _prompt_value("Display name: ", parse_name)
+    port = _prompt_value(f"TCP listening port [{StartupConfig.port}]: ", parse_port, StartupConfig.port)
+    bcast = input(f"UDP broadcast address [{StartupConfig.bcast}]: ") or StartupConfig.bcast
+    downloads = input(f"Downloads folder [{StartupConfig.downloads}]: ") or StartupConfig.downloads
+    return StartupConfig(name, port, bcast, downloads)
 
 
 class Console:
