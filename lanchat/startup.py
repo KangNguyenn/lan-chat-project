@@ -1,5 +1,9 @@
 """Configuration shared by the command line and both startup interfaces."""
 from dataclasses import dataclass
+from pathlib import Path
+
+
+PROJECT_DOWNLOADS = str(Path(__file__).resolve().parent.parent / "downloads")
 
 
 @dataclass(frozen=True)
@@ -7,7 +11,7 @@ class StartupConfig:
     name: str
     port: int = 0
     bcast: str = "255.255.255.255"
-    downloads: str = "downloads"
+    downloads: str = PROJECT_DOWNLOADS
 
 
 def parse_name(value):
