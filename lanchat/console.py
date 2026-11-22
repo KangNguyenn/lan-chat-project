@@ -3,6 +3,8 @@ import queue
 import threading
 
 from .app import LanChatApp
+from .peers import PRESENCE_LABELS
+from .protocol import ProtocolError
 from .startup import StartupConfig, parse_name, parse_port
 
 
@@ -16,11 +18,11 @@ def _prompt_value(label, parse, default=""):
 
 
 def prompt_startup_config():
-    print("LAN Chat — Startup configuration")
-    name = _prompt_value("Display name: ", parse_name)
-    port = _prompt_value(f"TCP listening port [{StartupConfig.port}]: ", parse_port, StartupConfig.port)
-    bcast = input(f"UDP broadcast address [{StartupConfig.bcast}]: ") or StartupConfig.bcast
-    downloads = input(f"Downloads folder [{StartupConfig.downloads}]: ") or StartupConfig.downloads
+    print("LAN Chat — Cấu hình khởi động")
+    name = _prompt_value("Tên hiển thị: ", parse_name)
+    port = _prompt_value(f"Cổng TCP lắng nghe [{StartupConfig.port}]: ", parse_port, StartupConfig.port)
+    bcast = input(f"Địa chỉ quảng bá UDP [{StartupConfig.bcast}]: ") or StartupConfig.bcast
+    downloads = input(f"Thư mục lưu tệp nhận [{StartupConfig.downloads}]: ") or StartupConfig.downloads
     return StartupConfig(name, port, bcast, downloads)
 
 
@@ -46,7 +48,7 @@ class Console:
             return peers[index] if 0 <= index < len(peers) else None
         found = [peer for peer in peers if peer.name == target]
         if len(found) > 1:
-            raise ValueError("Multiple users have this name. Select one by number from /list")
+            raise ValueError("Có nhiều người dùng trùng tên. Hãy dùng /list rồi chọn theo số thứ tự.")
         return found[0] if found else None
 
     def _process(self, line):
@@ -58,30 +60,30 @@ class Console:
         cmd, param = cmd.lower(), param.strip()
         if cmd == "/help":
             self.events.put(
-                "Commands:\n"
-                "  /list                  Show online users with number, name, IP and status\n"
-                "  /chat <name|number>    Open a chat with the selected user (TCP connection)\n"
-                "  <any text>             Send a message to the current chat partner\n"
-                "  /send <file>           Send a file to the current chat partner\n"
-                "  /leave                 Close the current chat\n"
-                "  /status <online|away>  Change your status (sent via UDP)\n"
-                "  /help                  Show all commands\n"
-                "  /quit                  Exit the program"
+                "Các lệnh\n"
+                "  /list                   Xem danh sách người dùng và trạng thái.\n"
+                "  /chat <tên|số>          Mở cuộc trò chuyện qua TCP.\n"
+                "  <tin nhắn>              Gửi tin nhắn cho người đang trò chuyện.\n"
+                "  /send <tệp>             Gửi tệp cho người đang trò chuyện.\n"
+                "  /leave                  Rời cuộc trò chuyện hiện tại.\n"
+                "  /status <online|away>   Đổi trạng thái qua UDP (trực tuyến hoặc vắng mặt).\n"
+                "  /help                   Xem các lệnh.\n"
+                "  /quit                   Thoát ứng dụng."
             )
         elif cmd == "/list":
             peers = self.app.peers.list()
             if not peers:
-                self.events.put("[*] No users online")
+                self.events.put("[*] Chưa có người dùng nào trực tuyến.")
             for i, peer in enumerate(peers, 1):
-                self.events.put(f"{i}. {peer.name} ({peer.ip}:{peer.port}) - {peer.status}")
+                self.events.put(f"{i}. {peer.name} ({peer.ip}:{peer.port}) - {PRESENCE_LABELS[peer.status]}")
         elif cmd == "/chat":
             peer = self._find_peer(param) if param else None
             if not peer:
-                raise ValueError("User not found. Use /list to see available users")
+                raise ValueError("Không tìm thấy người dùng. Dùng /list để xem danh sách.")
             self.app.select_chat(peer)
         elif cmd == "/send":
             if not param:
-                raise ValueError("Usage: /send <file>")
+                raise ValueError("Cú pháp: /send <tệp>")
             self.app.send_file(param.strip('"').strip("'"))
         elif cmd == "/status":
             self.app.set_status(param)
@@ -89,13 +91,13 @@ class Console:
             peer_id = self.app.chats.leave()
             if peer_id:
                 self.app.connections.close_peer(peer_id)
-                self.events.put("[*] Left the current chat")
+                self.events.put("[*] Đã rời cuộc trò chuyện.")
             else:
-                self.events.put("[*] No active chat to leave")
+                self.events.put("[*] Bạn chưa mở cuộc trò chuyện nào.")
         elif cmd == "/quit":
             return False
         else:
-            raise ValueError("Unknown command. Use /help to see available commands")
+            raise ValueError("Lệnh không hợp lệ. Dùng /help để xem các lệnh.")
         return True
 
     def run(self):
@@ -103,13 +105,13 @@ class Console:
             from prompt_toolkit import PromptSession
             from prompt_toolkit.patch_stdout import patch_stdout
         except ImportError as exc:
-            raise RuntimeError("prompt_toolkit is required. Install dependencies: python -m pip install -r requirements.txt") from exc
+            raise RuntimeError("Cần thư viện prompt_toolkit. Hãy cài bằng lệnh python -m pip install -r requirements.txt") from exc
         self.printer = threading.Thread(target=self._print_events, daemon=True)
         self.printer.start()
         try:
             with patch_stdout():
                 self.app.start()
-                self.events.put("[*] Type /help to see available commands")
+                self.events.put("[*] Gõ /help để xem các lệnh.")
                 session = PromptSession(erase_when_done=True)
                 while True:
                     try:
@@ -119,7 +121,7 @@ class Console:
                     try:
                         if not self._process(line):
                             break
-                    except (ValueError, OSError, EOFError, ConnectionError) as exc:
+                    except (ValueError, OSError, EOFError, ProtocolError) as exc:
                         self.events.put(f"[!] {exc}")
         finally:
             self.app.stop()

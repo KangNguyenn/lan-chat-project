@@ -15,7 +15,7 @@ class ChatConnection:
 
     def send(self, frame):
         if self.closed:
-            raise ConnectionError("Chat connection already closed")
+            raise ConnectionError("Kết nối trò chuyện đã đóng.")
         send_frame(self.sock, frame, self.lock)
 
     def close(self, goodbye=False):
@@ -73,7 +73,7 @@ class ConnectionManager:
             self.app.emit("connection_closed", peer_id=conn.peer_id)
         if was_current:
             p = self.app.peers.get(conn.peer_id)
-            self.app.notice(f"[*] Disconnected from {p.name if p else conn.peer_id}. Returned to the main prompt.")
+            self.app.notice(f"[*] Đã ngắt kết nối với {p.name if p else conn.peer_id}.")
 
     def _read_loop(self, conn):
         try:
@@ -84,7 +84,7 @@ class ConnectionManager:
                 if frame["type"] == "MSG":
                     text = frame.get("text")
                     if not isinstance(text, str) or len(text.encode("utf-8")) > 65536:
-                        raise ProtocolError("Invalid message text")
+                        raise ProtocolError("Nội dung tin nhắn không hợp lệ.")
                     peer = self.app.peers.get(conn.peer_id)
                     name = peer.name if peer else conn.peer_id[:8]
                     active, count = self.app.chats.receive(conn.peer_id, name, text)
@@ -93,12 +93,12 @@ class ConnectionManager:
                     if active:
                         self.app.notice(f"[{name}] {text}")
                     else:
-                        self.app.notice(f"[*] New message from {name} ({count} unread)")
+                        self.app.notice(f"[*] Tin nhắn mới từ {name} ({count} tin chưa đọc).")
                 else:
-                    raise ProtocolError("Unexpected chat frame")
+                    raise ProtocolError("Nhận được khung dữ liệu không đúng loại trong cuộc trò chuyện.")
         except (EOFError, OSError, ProtocolError) as exc:
             if not self.app.stop_event.is_set() and self.get(conn.peer_id) is conn:
-                self.app.notice(f"[!] Chat connection lost: {exc}")
+                self.app.notice(f"[!] Mất kết nối trò chuyện: {exc}")
         finally:
             self._on_disconnect(conn)
 
@@ -133,7 +133,7 @@ class ConnectionManager:
         if not conn:
             peer = self.app.peers.get(peer_id)
             if not peer:
-                raise ConnectionError("Peer is offline")
+                raise ConnectionError("Người dùng đã ngoại tuyến.")
             conn = self.connect(peer)
         conn.send({"type": "MSG", "text": text})
 

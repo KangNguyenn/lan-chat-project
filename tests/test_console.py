@@ -1,39 +1,38 @@
-"""English-only built-in CLI text; user-provided content remains untouched."""
+"""Vietnamese terminal interface and command syntax."""
 import unittest
 
 from lanchat.console import Console
 
 
-class EnglishConsoleTests(unittest.TestCase):
+class ConsoleTests(unittest.TestCase):
     def setUp(self):
         self.console = Console("Alice", 0, "127.255.255.255", "downloads")
 
-    def test_help_shows_all_required_commands_in_english(self):
+    def test_help_shows_all_required_commands_in_vietnamese(self):
         self.assertTrue(self.console._process("/help"))
         help_text = self.console.events.get_nowait()
-        for command in ("/list", "/chat <name|number>", "<any text>",
-                        "/send <file>", "/leave", "/status <online|away>",
+        for command in ("/list", "/chat <tên|số>", "<tin nhắn>",
+                        "/send <tệp>", "/leave", "/status <online|away>",
                         "/help", "/quit"):
             self.assertIn(command, help_text)
-        self.assertIn("Show online users", help_text)
-        self.assertIn("Send a file", help_text)
-        self.assertTrue(help_text.isascii())
+        self.assertIn("Xem danh sách người dùng", help_text)
+        self.assertIn("Gửi tệp", help_text)
 
-    def test_no_users_and_missing_peer_are_in_english(self):
+    def test_no_users_and_missing_peer_are_in_vietnamese(self):
         self.assertTrue(self.console._process("/list"))
-        self.assertEqual(self.console.events.get_nowait(), "[*] No users online")
-        with self.assertRaisesRegex(ValueError, "User not found"):
+        self.assertEqual(self.console.events.get_nowait(), "[*] Chưa có người dùng nào trực tuyến.")
+        with self.assertRaisesRegex(ValueError, "Không tìm thấy người dùng"):
             self.console._process("/chat nobody")
-        with self.assertRaisesRegex(ValueError, "Usage: /send <file>"):
+        with self.assertRaisesRegex(ValueError, "Cú pháp: /send <tệp>"):
             self.console._process("/send")
-        with self.assertRaisesRegex(ValueError, "Unknown command"):
+        with self.assertRaisesRegex(ValueError, "Lệnh không hợp lệ"):
             self.console._process("/unknown")
 
-    def test_status_and_leave_messages_are_in_english(self):
+    def test_status_and_leave_messages_are_in_vietnamese(self):
         self.assertTrue(self.console._process("/status away"))
-        self.assertEqual(self.console.events.get_nowait(), "[*] Status: away")
+        self.assertEqual(self.console.events.get_nowait(), "[*] Trạng thái của bạn: Vắng mặt")
         self.assertTrue(self.console._process("/leave"))
-        self.assertEqual(self.console.events.get_nowait(), "[*] No active chat to leave")
+        self.assertEqual(self.console.events.get_nowait(), "[*] Bạn chưa mở cuộc trò chuyện nào.")
 
 
 if __name__ == "__main__":

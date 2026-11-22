@@ -75,14 +75,14 @@ class StartupForm(ttk.Frame):
     def _submit(self, event=None):
         try:
             name = parse_name(self.name.get())
-        except ValueError:
-            self.show_error("Tên hiển thị phải có từ 1 đến 60 ký tự.")
+        except ValueError as exc:
+            self.show_error(str(exc))
             self.name_entry.focus_set()
             return
         try:
             port = parse_port(self.port.get() or StartupConfig.port)
-        except ValueError:
-            self.show_error("Cổng TCP phải là số nguyên từ 0 đến 65535.")
+        except ValueError as exc:
+            self.show_error(str(exc))
             self.port_entry.focus_set()
             return
 

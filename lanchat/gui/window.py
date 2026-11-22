@@ -4,8 +4,9 @@ import threading
 import tkinter as tk
 from tkinter import filedialog, font, messagebox, ttk
 
+from ..peers import PRESENCE_LABELS
 
-PRESENCE_LABELS = {"online": "Trực tuyến", "away": "Vắng mặt", "offline": "Ngoại tuyến"}
+
 ACTION_ERRORS = {
     "connect": "Không thể kết nối với người dùng này.",
     "send message": "Không thể gửi tin nhắn.",

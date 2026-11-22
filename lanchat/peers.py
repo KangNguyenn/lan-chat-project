@@ -4,6 +4,9 @@ import time
 from dataclasses import dataclass
 
 
+PRESENCE_LABELS = {"online": "Trực tuyến", "away": "Vắng mặt", "offline": "Ngoại tuyến"}
+
+
 @dataclass
 class Peer:
     peer_id: str
@@ -34,9 +37,9 @@ class PeerStore:
         with self._lock:
             prev = self._peers.get(peer_id)
             if prev is None:
-                change = f"[*] {name} is online ({ip}:{port})"
+                change = f"[*] {name} đã vào mạng ({ip}:{port}) · {PRESENCE_LABELS[status]}"
             elif prev.status != status:
-                change = f"[*] {name} changed status to {status}"
+                change = f"[*] {name} đã đổi trạng thái sang {PRESENCE_LABELS[status]}."
             self._peers[peer_id] = Peer(peer_id, name, ip, port, status, time.monotonic())
         if change:
             self._notify(change)
@@ -50,7 +53,7 @@ class PeerStore:
             for p in gone:
                 self._peers.pop(p.peer_id, None)
         for p in gone:
-            self._notify(f"[*] {p.name} is offline (timeout)")
+            self._notify(f"[*] {p.name} đã ngoại tuyến (quá thời gian chờ).")
             if self._emit is not None:
                 self._emit("peer_status", name=p.name, status="offline")
 
