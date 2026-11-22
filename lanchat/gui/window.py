@@ -18,27 +18,34 @@ class LanChatWindow:
 
         root.title(f"LAN Chat — {self.app.name}")
         root.geometry("880x570")
-        root.minsize(620, 400)
         root.protocol("WM_DELETE_WINDOW", self.close)
+        root.rowconfigure(0, weight=1)
+        root.columnconfigure(0, weight=1)
 
-        outer = ttk.Frame(root, padding=12)
-        outer.pack(fill="both", expand=True)
+        outer = ttk.Frame(root, padding=(12, 8))
+        outer.grid(row=0, column=0, sticky="nsew")
+        outer.rowconfigure(1, weight=1)
+        outer.columnconfigure(0, weight=1)
         heading = ttk.Frame(outer)
-        heading.pack(fill="x", pady=(0, 10))
+        heading.grid(row=0, column=0, sticky="ew", pady=(0, 6))
         ttk.Label(heading, text="LAN Chat", font=("TkDefaultFont", 16, "bold")).pack(side="left")
         ttk.Label(heading, text=f"{self.app.name}  •  Online").pack(side="right")
 
         split = ttk.Panedwindow(outer, orient="horizontal")
-        split.pack(fill="both", expand=True)
-        sidebar = ttk.Frame(split, padding=(0, 6, 6, 0))
-        chat = ttk.Frame(split, padding=(9, 6, 0, 0))
+        split.grid(row=1, column=0, sticky="nsew")
+        sidebar = ttk.Frame(split, padding=(0, 2, 6, 0))
+        chat = ttk.Frame(split, padding=(9, 2, 0, 0))
         split.add(sidebar, weight=1)
         split.add(chat, weight=3)
+        sidebar.rowconfigure(1, weight=1)
+        sidebar.columnconfigure(0, weight=1)
+        chat.rowconfigure(2, weight=1)
+        chat.columnconfigure(0, weight=1)
 
-        ttk.Label(sidebar, text="Peers", font=("TkDefaultFont", 11, "bold")).pack(
-            anchor="w", pady=(0, 6))
+        ttk.Label(sidebar, text="Peers", font=("TkDefaultFont", 11, "bold")).grid(
+            row=0, column=0, sticky="w", pady=(0, 4))
         self.peer_list = ttk.Treeview(sidebar, columns=("status", "unread"),
-                                      show="tree headings", selectmode="browse")
+                                     show="tree headings", selectmode="browse", height=4)
         self.peer_list.heading("#0", text="Name")
         self.peer_list.heading("status", text="Status")
         self.peer_list.heading("unread", text="New")
@@ -46,48 +53,60 @@ class LanChatWindow:
         self.peer_list.column("status", minwidth=50, width=65, stretch=False)
         self.peer_list.column("unread", minwidth=32, width=34, stretch=False, anchor="center")
         self.peer_list.tag_configure("offline", foreground="#888888")
-        self.peer_list.pack(fill="both", expand=True)
+        self.peer_list.grid(row=1, column=0, sticky="nsew")
+        peer_scroll = ttk.Scrollbar(sidebar, orient="vertical", command=self.peer_list.yview)
+        peer_scroll.grid(row=1, column=1, sticky="ns")
+        self.peer_list.configure(yscrollcommand=peer_scroll.set)
         self.peer_list.bind("<<TreeviewSelect>>", self._select_peer)
 
         self.peer_title = tk.StringVar(value="Select a peer to start chatting")
         self.peer_address = tk.StringVar(value="")
         ttk.Label(chat, textvariable=self.peer_title,
-                  font=("TkDefaultFont", 12, "bold")).pack(anchor="w")
-        ttk.Label(chat, textvariable=self.peer_address).pack(anchor="w", pady=(2, 8))
+                  font=("TkDefaultFont", 12, "bold")).grid(row=0, column=0, sticky="ew")
+        ttk.Label(chat, textvariable=self.peer_address).grid(
+            row=1, column=0, sticky="ew", pady=(0, 4))
 
         transcript = ttk.Frame(chat)
-        transcript.pack(fill="both", expand=True)
+        transcript.grid(row=2, column=0, sticky="nsew")
+        transcript.rowconfigure(0, weight=1)
+        transcript.columnconfigure(0, weight=1)
         self.messages = tk.Text(transcript, wrap="word", state="disabled", relief="flat",
-                                padx=12, pady=12, borderwidth=1, highlightthickness=1)
+                                width=1, height=3, padx=12, pady=6,
+                                borderwidth=1, highlightthickness=1)
         self.messages.tag_configure("outgoing", justify="right", foreground="#1766bb",
                                      spacing1=8, spacing3=5)
         self.messages.tag_configure("incoming", justify="left", spacing1=8, spacing3=5)
-        self.messages.pack(side="left", fill="both", expand=True)
+        self.messages.grid(row=0, column=0, sticky="nsew")
         scroll = ttk.Scrollbar(transcript, orient="vertical", command=self.messages.yview)
-        scroll.pack(side="right", fill="y")
+        scroll.grid(row=0, column=1, sticky="ns")
         self.messages.configure(yscrollcommand=scroll.set)
 
         transfer = ttk.Frame(chat)
-        transfer.pack(fill="x", pady=(8, 5))
+        transfer.grid(row=3, column=0, sticky="ew", pady=(4, 2))
+        transfer.columnconfigure(0, weight=1)
         self.transfer_text = tk.StringVar(value="")
-        ttk.Label(transfer, textvariable=self.transfer_text).pack(side="left")
+        ttk.Label(transfer, textvariable=self.transfer_text).grid(row=0, column=0, sticky="ew")
         self.transfer_bar = ttk.Progressbar(transfer, maximum=100, length=120)
-        self.transfer_bar.pack(side="right")
+        self.transfer_bar.grid(row=0, column=1)
 
         controls = ttk.Frame(chat)
-        controls.pack(fill="x", pady=(4, 2))
+        controls.grid(row=4, column=0, sticky="ew", pady=(2, 0))
+        controls.columnconfigure(1, weight=1)
         self.attach_button = ttk.Button(controls, text="Attach", command=self._attach,
                                         state="disabled")
-        self.attach_button.pack(side="left")
-        self.message_input = ttk.Entry(controls, state="disabled")
-        self.message_input.pack(side="left", fill="x", expand=True, padx=(8, 8))
+        self.attach_button.grid(row=0, column=0)
+        self.message_input = ttk.Entry(controls, width=1, state="disabled")
+        self.message_input.grid(row=0, column=1, sticky="ew", padx=8)
         self.message_input.bind("<Return>", self._send)
         self.send_button = ttk.Button(controls, text="Send", command=self._send,
                                       state="disabled")
-        self.send_button.pack(side="right")
+        self.send_button.grid(row=0, column=2)
 
         self.status_text = tk.StringVar(value="Searching for peers on the local network...")
-        ttk.Label(outer, textvariable=self.status_text).pack(anchor="w", pady=(8, 0))
+        ttk.Label(outer, textvariable=self.status_text).grid(
+            row=2, column=0, sticky="ew", pady=(4, 0))
+        root.update_idletasks()
+        root.minsize(620, root.winfo_reqheight())
         self._tick()
 
     def _sync_peers(self):
