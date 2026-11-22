@@ -1,9 +1,8 @@
 """Layout regression tests that use a real Tk display when available."""
 import unittest
-from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from lanchat.peers import ChatStore, PeerStore
+from lanchat.app import LanChatApp
 
 
 class ChatLayoutTests(unittest.TestCase):
@@ -38,11 +37,11 @@ class ChatLayoutTests(unittest.TestCase):
                     self.skipTest(f"Tk display unavailable: {exc}")
                 try:
                     root.tk.call("tk", "scaling", scaling)
-                    app = SimpleNamespace(name="Kang", chats=ChatStore(), peers=PeerStore(Mock()))
+                    app = LanChatApp("Kang", notify=Mock())
                     controller = Mock(app=app)
                     with patch.object(LanChatWindow, "_tick"):
                         window = LanChatWindow(root, controller)
-                    controls = (window.attach_button, window.message_input,
+                    controls = (window.presence_button, window.attach_button, window.message_input,
                                 window.send_button, window.transfer_bar)
                     root.update()
                     tall_transcript = window.messages.winfo_height()

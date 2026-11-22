@@ -55,7 +55,7 @@ configuration flags if provided and prompts for settings otherwise.
 - The peer list displays online/away status and unread message counts. Offline peers previously seen in this session are shown in gray so you can still inspect their in-memory conversation.
 - Close the window to quit and close network connections. Closing during an active transfer cancels it.
 
-Name and network settings are configured at startup. Run the CLI `/status` command to change your status during a session.
+Name and network settings are configured at startup. Click the status button in the top right to switch between **Online** and **Away** during a session.
 
 ### CLI commands
 

@@ -29,7 +29,11 @@ class LanChatWindow:
         heading = ttk.Frame(outer)
         heading.grid(row=0, column=0, sticky="ew", pady=(0, 6))
         ttk.Label(heading, text="LAN Chat", font=("TkDefaultFont", 16, "bold")).pack(side="left")
-        ttk.Label(heading, text=f"{self.app.name}  •  Online").pack(side="right")
+        self.presence_button = ttk.Button(heading, width=15,
+                                          text=f"Status: {self.app.get_status().capitalize()}",
+                                          command=self._toggle_presence)
+        self.presence_button.pack(side="right")
+        ttk.Label(heading, text=self.app.name).pack(side="right", padx=(8, 8))
 
         split = ttk.Panedwindow(outer, orient="horizontal")
         split.grid(row=1, column=0, sticky="nsew")
@@ -108,6 +112,11 @@ class LanChatWindow:
         root.update_idletasks()
         root.minsize(620, root.winfo_reqheight())
         self._tick()
+
+    def _toggle_presence(self):
+        status = "away" if self.app.get_status() == "online" else "online"
+        self.app.set_status(status)
+        self.presence_button.configure(text=f"Status: {status.capitalize()}")
 
     def _sync_peers(self):
         peers = self.app.peers.list()
@@ -262,6 +271,7 @@ class LanChatWindow:
                                        parent=self.root):
                 return
         self.closed = True
+        self.presence_button.state(["disabled"])
         self.message_input.configure(state="disabled")
         self.send_button.configure(state="disabled")
         self.attach_button.configure(state="disabled")
