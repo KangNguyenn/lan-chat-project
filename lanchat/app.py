@@ -5,7 +5,7 @@ import uuid
 
 from .connections import ConnectionManager
 from .discovery import Discovery
-from .peers import ChatStore, PeerStore
+from .peers import PRESENCE_LABELS, ChatStore, PeerStore
 from .protocol import ProtocolError, recv_frame, send_frame
 from .startup import StartupConfig
 from .transfer import TransferManager
@@ -15,7 +15,7 @@ class LanChatApp:
     def __init__(self, name, port=StartupConfig.port, broadcast="255.255.255.255", notify=print,
                  downloads="downloads", event_sink=None):
         if not name or len(name) > 60:
-            raise ValueError("Display name must be between 1 and 60 characters")
+            raise ValueError("Tên hiển thị phải có từ 1 đến 60 ký tự.")
         self.identity = uuid.uuid4().hex
         self.name = name
         self.port = port
@@ -25,7 +25,7 @@ class LanChatApp:
         self.stop_event = threading.Event()
         self.status_lock = threading.Lock()
         self._status = "online"
-        self.peers = PeerStore(notify)
+        self.peers = PeerStore(notify, self.emit)
         self.chats = ChatStore()
         self.connections = ConnectionManager(self)
         self.transfers = TransferManager(self, downloads)
@@ -45,10 +45,10 @@ class LanChatApp:
 
     def set_status(self, status):
         if status not in ("online", "away"):
-            raise ValueError("Status must be online or away")
+            raise ValueError("Dùng /status online để đặt trạng thái Trực tuyến hoặc /status away để đặt Vắng mặt.")
         with self.status_lock:
             self._status = status
-        self.notice(f"[*] Status: {status}")
+        self.notice(f"[*] Trạng thái của bạn: {PRESENCE_LABELS[status]}")
 
     def hello(self, kind):
         return {"type": "HELLO", "version": 1, "id": self.identity,
@@ -62,11 +62,11 @@ class LanChatApp:
                 or not isinstance(value.get("name"), str) or not 1 <= len(value["name"]) <= 60
                 or not isinstance(value.get("port"), int)
                 or isinstance(value.get("port"), bool) or not 1 <= value["port"] <= 65535):
-            raise ProtocolError("Invalid HELLO handshake")
+            raise ProtocolError("Bản tin bắt tay HELLO không hợp lệ.")
         if expected_id is not None and value["id"] != expected_id:
-            raise ProtocolError("Peer ID does not match discovery")
+            raise ProtocolError("Mã người dùng không khớp với thông tin đã nhận qua UDP.")
         if kind is not None and value["kind"] != kind:
-            raise ProtocolError("Unexpected TCP connection type")
+            raise ProtocolError("Loại kết nối TCP không đúng với yêu cầu.")
 
     def start(self):
         if self.listener:
@@ -80,7 +80,7 @@ class LanChatApp:
             self.port = server.getsockname()[1]
             self.listener = server
             self.discovery = Discovery(self.identity, self.name, self.port, self.get_status,
-                                       self.peers, self.notice, self.broadcast, self.stop_event)
+                                       self.peers, self.notice, self.broadcast, self.stop_event, self.emit)
             self.discovery.start()
             self.accept_thread = threading.Thread(target=self._accept_loop, daemon=True)
             self.accept_thread.start()
@@ -88,7 +88,7 @@ class LanChatApp:
             server.close()
             self.stop()
             raise
-        self.notice(f"[*] {self.name}: TCP {self.port}, UDP 9999, broadcast {self.broadcast}")
+        self.notice(f"[*] {self.name}: TCP {self.port}, UDP 9999, địa chỉ quảng bá {self.broadcast}")
 
     def _accept_loop(self):
         while not self.stop_event.is_set():
@@ -110,7 +110,7 @@ class LanChatApp:
             hello = recv_frame(sock)
             self.validate_hello(hello)
             if hello["id"] == self.identity:
-                raise ProtocolError("Cannot connect to yourself")
+                raise ProtocolError("Không thể kết nối với chính mình.")
             known = self.peers.get(hello["id"])
             status = known.status if known else "online"
             self.peers.observe(hello["id"], hello["name"], addr[0], hello["port"], status)
@@ -124,7 +124,8 @@ class LanChatApp:
                 self.transfers.receive_file(sock, hello)
         except (OSError, EOFError, ProtocolError) as exc:
             if not self.stop_event.is_set():
-                self.notice(f"[!] Invalid TCP connection from {addr[0]}: {exc}")
+                self.notice(f"[!] Kết nối TCP không hợp lệ từ {addr[0]}: {exc}")
+                self.emit("incoming_error", ip=addr[0])
         finally:
             if owned:
                 sock.close()
@@ -134,17 +135,17 @@ class LanChatApp:
     def select_chat(self, peer):
         self.connections.connect(peer)
         unseen = self.chats.select(peer.peer_id)
-        self.notice(f"[*] Chatting with {peer.name} ({peer.ip}:{peer.port})")
+        self.notice(f"[*] Đang trò chuyện với {peer.name} ({peer.ip}:{peer.port})")
         if unseen:
-            self.notice(f"[*] {len(unseen)} unread message(s):")
+            self.notice(f"[*] Có {len(unseen)} tin nhắn chưa đọc:")
             for name, msg in unseen:
                 self.notice(f"[{name}] {msg}")
 
     def send_text_to(self, peer_id, text):
         if not isinstance(text, str) or len(text.encode("utf-8")) > 65536:
-            raise ValueError("Message is too long (maximum 64 KiB)")
+            raise ValueError("Tin nhắn vượt quá giới hạn 64 KiB.")
         if not text.strip():
-            raise ValueError("Message cannot be empty")
+            raise ValueError("Tin nhắn không được để trống.")
         self.connections.send_message(peer_id, text)
         self.chats.sent(peer_id, self.name, text)
         self.emit("message_sent", peer_id=peer_id, name=self.name, text=text)
@@ -154,20 +155,20 @@ class LanChatApp:
         with self.chats.lock:
             peer_id = self.chats.current
         if peer_id is None:
-            raise ValueError("No chat selected. Use /chat <name|number>.")
+            raise ValueError("Bạn chưa chọn người để trò chuyện. Dùng /chat <tên|số>.")
         self.send_text_to(peer_id, text)
 
     def send_file_to(self, peer_id, path):
         peer = self.peers.get(peer_id)
         if peer is None:
-            raise ValueError("Peer is offline")
+            raise ValueError("Người dùng đã ngoại tuyến.")
         self.transfers.send_file(peer, path)
 
     def send_file(self, path):
         with self.chats.lock:
             peer_id = self.chats.current
         if peer_id is None:
-            raise ValueError("No chat selected. Use /chat first.")
+            raise ValueError("Hãy mở cuộc trò chuyện bằng /chat trước khi gửi tệp.")
         self.send_file_to(peer_id, path)
 
     def stop(self):

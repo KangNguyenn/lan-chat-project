@@ -2,7 +2,16 @@
 import queue
 import threading
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, font, messagebox, ttk
+
+from ..peers import PRESENCE_LABELS
+
+
+ACTION_ERRORS = {
+    "connect": "Không thể kết nối với người dùng này.",
+    "send message": "Không thể gửi tin nhắn.",
+    "send file": "Không thể gửi tệp đã chọn.",
+}
 
 
 class LanChatWindow:
@@ -29,8 +38,8 @@ class LanChatWindow:
         heading = ttk.Frame(outer)
         heading.grid(row=0, column=0, sticky="ew", pady=(0, 6))
         ttk.Label(heading, text="LAN Chat", font=("TkDefaultFont", 16, "bold")).pack(side="left")
-        self.presence_button = ttk.Button(heading, width=15,
-                                          text=f"Status: {self.app.get_status().capitalize()}",
+        self.presence_button = ttk.Button(heading, width=12,
+                                          text=PRESENCE_LABELS[self.app.get_status()],
                                           command=self._toggle_presence)
         self.presence_button.pack(side="right")
         ttk.Label(heading, text=self.app.name).pack(side="right", padx=(8, 8))
@@ -46,16 +55,24 @@ class LanChatWindow:
         chat.rowconfigure(2, weight=1)
         chat.columnconfigure(0, weight=1)
 
-        ttk.Label(sidebar, text="Peers", font=("TkDefaultFont", 11, "bold")).grid(
+        ttk.Label(sidebar, text="Người dùng", font=("TkDefaultFont", 11, "bold")).grid(
             row=0, column=0, sticky="w", pady=(0, 4))
+        peer_style = ttk.Style(root)
+        peer_row_font = font.nametofont("TkDefaultFont", root=root)
+        peer_style.configure("Peers.Treeview", rowheight=peer_row_font.metrics("linespace") + 6)
         self.peer_list = ttk.Treeview(sidebar, columns=("status", "unread"),
-                                     show="tree headings", selectmode="browse", height=4)
-        self.peer_list.heading("#0", text="Name")
-        self.peer_list.heading("status", text="Status")
-        self.peer_list.heading("unread", text="New")
+                                     show="tree headings", selectmode="browse", height=4,
+                                     style="Peers.Treeview")
+        self.peer_list.heading("#0", text="Tên")
+        self.peer_list.heading("status", text="Trạng thái")
+        self.peer_list.heading("unread", text="Tin mới")
         self.peer_list.column("#0", minwidth=90, width=125)
-        self.peer_list.column("status", minwidth=50, width=65, stretch=False)
-        self.peer_list.column("unread", minwidth=32, width=34, stretch=False, anchor="center")
+        header_font = font.nametofont("TkHeadingFont", root=root)
+        status_width = max(map(header_font.measure, ("Trạng thái", *PRESENCE_LABELS.values()))) + 16
+        unread_width = header_font.measure("Tin mới") + 16
+        self.peer_list.column("status", minwidth=status_width, width=status_width, stretch=False)
+        self.peer_list.column("unread", minwidth=unread_width, width=unread_width,
+                              stretch=False, anchor="center")
         self.peer_list.tag_configure("offline", foreground="#888888")
         self.peer_list.grid(row=1, column=0, sticky="nsew")
         peer_scroll = ttk.Scrollbar(sidebar, orient="vertical", command=self.peer_list.yview)
@@ -63,7 +80,7 @@ class LanChatWindow:
         self.peer_list.configure(yscrollcommand=peer_scroll.set)
         self.peer_list.bind("<<TreeviewSelect>>", self._select_peer)
 
-        self.peer_title = tk.StringVar(value="Select a peer to start chatting")
+        self.peer_title = tk.StringVar(value="Chọn người dùng để bắt đầu trò chuyện")
         self.peer_address = tk.StringVar(value="")
         ttk.Label(chat, textvariable=self.peer_title,
                   font=("TkDefaultFont", 12, "bold")).grid(row=0, column=0, sticky="ew")
@@ -96,17 +113,17 @@ class LanChatWindow:
         controls = ttk.Frame(chat)
         controls.grid(row=4, column=0, sticky="ew", pady=(2, 0))
         controls.columnconfigure(1, weight=1)
-        self.attach_button = ttk.Button(controls, text="Attach", command=self._attach,
+        self.attach_button = ttk.Button(controls, text="Đính kèm", command=self._attach,
                                         state="disabled")
         self.attach_button.grid(row=0, column=0)
         self.message_input = ttk.Entry(controls, width=1, state="disabled")
         self.message_input.grid(row=0, column=1, sticky="ew", padx=8)
         self.message_input.bind("<Return>", self._send)
-        self.send_button = ttk.Button(controls, text="Send", command=self._send,
+        self.send_button = ttk.Button(controls, text="Gửi", command=self._send,
                                       state="disabled")
         self.send_button.grid(row=0, column=2)
 
-        self.status_text = tk.StringVar(value="Searching for peers on the local network...")
+        self.status_text = tk.StringVar(value=f"Đang tìm người dùng trong mạng nội bộ… (TCP {self.app.port})")
         ttk.Label(outer, textvariable=self.status_text).grid(
             row=2, column=0, sticky="ew", pady=(4, 0))
         root.update_idletasks()
@@ -116,7 +133,8 @@ class LanChatWindow:
     def _toggle_presence(self):
         status = "away" if self.app.get_status() == "online" else "online"
         self.app.set_status(status)
-        self.presence_button.configure(text=f"Status: {status.capitalize()}")
+        self.presence_button.configure(text=PRESENCE_LABELS[status])
+        self.status_text.set(f"Trạng thái của bạn: {PRESENCE_LABELS[status]}")
 
     def _sync_peers(self):
         peers = self.app.peers.list()
@@ -128,7 +146,7 @@ class LanChatWindow:
             if peer_id not in online:
                 status = "offline"
                 self.known_peers[peer_id] = (name, ip, port, status)
-            values = (status.capitalize(), unread.get(peer_id, 0) or "")
+            values = (PRESENCE_LABELS[status], unread.get(peer_id, 0) or "")
             tags = ("offline",) if status == "offline" else ()
             if self.peer_list.exists(peer_id):
                 self.peer_list.item(peer_id, text=name, values=values, tags=tags)
@@ -145,7 +163,7 @@ class LanChatWindow:
             return
         name, ip, port, status = peer
         self.peer_title.set(name)
-        self.peer_address.set(f"{ip}:{port}  •  {status.capitalize()}")
+        self.peer_address.set(f"{ip}:{port}  •  {PRESENCE_LABELS[status]}")
         online = status != "offline"
         self.message_input.configure(state="normal" if online else "disabled")
         self.send_button.configure(state="normal" if online else "disabled")
@@ -171,7 +189,7 @@ class LanChatWindow:
         self.messages.configure(state="normal")
         self.messages.delete("1.0", "end")
         for name, message, direction in history:
-            label = "You" if direction == "outgoing" else name
+            label = "Bạn" if direction == "outgoing" else name
             self.messages.insert("end", f"{label}: {message}\n", direction)
         self.messages.configure(state="disabled")
         if scroll or near_bottom:
@@ -199,17 +217,21 @@ class LanChatWindow:
     def _attach(self):
         if self.selected_id is None or self.app.peers.get(self.selected_id) is None:
             return
-        path = filedialog.askopenfilename(parent=self.root, title="Select a file to send")
+        path = filedialog.askopenfilename(parent=self.root, title="Chọn tệp cần gửi")
         if path:
             self.controller.send_file(self.selected_id, path)
 
     def _handle_event(self, event):
         kind = event["type"]
-        if kind == "notice":
-            message = event["text"]
-            if message.startswith("[!") or message.startswith("[*]"):
-                self.status_text.set(message)
+        if kind == "peer_status":
+            self.status_text.set(f"{event['name']}: {PRESENCE_LABELS[event['status']]}")
+        elif kind == "discovery_error":
+            self.status_text.set("Không thể gửi gói quảng bá UDP. Hãy kiểm tra địa chỉ quảng bá.")
+        elif kind == "incoming_error":
+            self.status_text.set(f"Không thể thiết lập kết nối TCP từ {event['ip']}.")
         elif kind in ("message_received", "message_sent"):
+            if kind == "message_received" and event["unread"]:
+                self.status_text.set(f"{event['name']} có {event['unread']} tin nhắn chưa đọc.")
             if kind == "message_received" and event["peer_id"] == self.selected_id:
                 self.app.chats.select(self.selected_id)
             if event["peer_id"] == self.selected_id:
@@ -218,7 +240,7 @@ class LanChatWindow:
             peer_id = event["peer_id"]
             previous = self.transfers.get(peer_id, {"percent": 0})
             name = event["name"]
-            direction = event["direction"]
+            direction = "Gửi" if event["direction"] == "Sending" else "Nhận"
             if kind == "transfer_started":
                 percentage = 0
                 text = f"{direction} {name}: 0%"
@@ -229,24 +251,26 @@ class LanChatWindow:
                 active = True
             elif kind == "transfer_completed":
                 percentage = 100
-                text = f"{direction} {name}: complete"
+                text = f"{direction} {name}: hoàn tất"
+                self.status_text.set(text)
                 active = False
             else:
                 percentage = previous["percent"]
-                text = f"{direction} {name}: failed — {event['error']}"
+                text = f"{direction} {name}: thất bại"
+                self.status_text.set(text)
                 active = False
             self.transfers[peer_id] = {"percent": percentage, "text": text,
                                         "active": active}
             if peer_id == self.selected_id:
                 self._show_transfer()
         elif kind == "action_error":
-            self.status_text.set(f"[!] {event['action']}: {event['error']}")
+            self.status_text.set(ACTION_ERRORS[event["action"]])
             if event.get("action") == "send message":
                 if (event.get("peer_id") == self.selected_id
                         and not self.message_input.get()):
                     self.message_input.insert(0, event.get("message", ""))
         elif kind == "connection_closed":
-            self.status_text.set("[*] Chat connection closed")
+            self.status_text.set("Đã đóng kết nối trò chuyện.")
 
     def _tick(self):
         if self.closed:
@@ -266,8 +290,8 @@ class LanChatWindow:
         if self.closed:
             return
         if any(info["active"] for info in self.transfers.values()):
-            if not messagebox.askyesno("Quit LAN Chat",
-                                       "A file transfer is in progress. Quit and cancel it?",
+            if not messagebox.askyesno("Thoát LAN Chat",
+                                       "Đang truyền tệp. Bạn có muốn hủy và thoát không?",
                                        parent=self.root):
                 return
         self.closed = True
@@ -275,7 +299,7 @@ class LanChatWindow:
         self.message_input.configure(state="disabled")
         self.send_button.configure(state="disabled")
         self.attach_button.configure(state="disabled")
-        self.status_text.set("Closing connections...")
+        self.status_text.set("Đang đóng các kết nối…")
         self.stop_thread = threading.Thread(target=self.controller.stop, daemon=True)
         self.stop_thread.start()
         self._wait_for_shutdown()

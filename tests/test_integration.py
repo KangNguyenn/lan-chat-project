@@ -85,7 +85,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertTrue(wait_until(dest.exists, timeout=8), self.events)
         self.assertEqual(hashlib.sha256(dest.read_bytes()).digest(),
                          hashlib.sha256(source.read_bytes()).digest())
-        self.assertTrue(wait_until(lambda: any("File sent successfully" in x for x in self.events["a"])))
+        self.assertTrue(wait_until(lambda: any("Đã gửi tệp" in x for x in self.events["a"])))
 
     def test_interrupted_file_removed(self):
         a, b, _ = self.apps
@@ -97,7 +97,7 @@ class IntegrationTests(unittest.TestCase):
         sock.sendall(b"only partial")
         sock.close()
         target = pathlib.Path(self.temp.name) / "b"
-        self.assertTrue(wait_until(lambda: any("File reception failed" in x for x in self.events["b"])))
+        self.assertTrue(wait_until(lambda: any("Nhận tệp thất bại" in x for x in self.events["b"])))
         self.assertFalse(list(target.glob("*.txt")))
         self.assertFalse(list(target.glob(".*.part")))
 

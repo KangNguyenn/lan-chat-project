@@ -1,112 +1,105 @@
 # LAN Chat & File Sharing
 
-A peer-to-peer LAN messenger with a lightweight **Tkinter GUI by default** and an optional terminal client. Both interfaces use the same UDP discovery, TCP chat and file-transfer protocol. No central server or saved chat history.
+Ứng dụng nhắn tin và chia sẻ tệp ngang hàng trong mạng LAN. Ứng dụng mở **giao diện Tkinter** theo mặc định và có thể chạy trong terminal. Cả hai giao diện đều dùng UDP để tìm người dùng và TCP để nhắn tin, truyền tệp. Các máy kết nối trực tiếp với nhau. Lịch sử trò chuyện chỉ tồn tại trong phiên chạy.
 
-## Requirements
+## Yêu cầu
 
-- Python **3.10+** on Windows or Linux.
-- Two computers on the same LAN, with UDP broadcasts and incoming TCP connections allowed by the firewall.
-- `python -m pip install -r requirements.txt` (for the CLI's `prompt_toolkit`).
-- Tkinter for GUI mode: usually included with Python on Windows. On Linux install the OS package if missing (`python3-tk` on Debian/Ubuntu, `tk` on Arch/CachyOS).
+- Python **3.10 trở lên** trên Windows hoặc Linux.
+- Hai máy tính trên cùng mạng LAN. Tường lửa cần cho phép gói quảng bá UDP và kết nối TCP đến ứng dụng.
+- Cài `prompt_toolkit` cho chế độ dòng lệnh bằng `python -m pip install -r requirements.txt`.
+- Giao diện đồ họa cần Tkinter. Trên Windows, Tkinter thường đi kèm Python. Trên Linux, nếu thiếu, cài gói `python3-tk` trên Debian/Ubuntu hoặc `tk` trên Arch/CachyOS.
 
-## Run
+## Cách chạy
 
-Start the app without configuration flags to enter startup settings. The GUI opens
-a form with name and TCP port. Expand **Advanced settings** to set the broadcast
-address and downloads folder. In the terminal, press Enter to accept each optional
-default or Ctrl+C to cancel setup.
+Chạy ứng dụng mà không truyền tùy chọn cấu hình để nhập thiết lập khi khởi động. Cửa sổ Tkinter cho phép nhập tên hiển thị và cổng TCP. Mở **Cài đặt nâng cao** để chỉnh địa chỉ quảng bá và thư mục lưu tệp nhận. Trong terminal, nhấn **Enter** để dùng giá trị mặc định hoặc **Ctrl+C** để hủy.
 
 ```bash
-# GUI setup (default)
+# Mở cửa sổ cấu hình
 python main.py
 
-# Terminal setup
+# Nhập cấu hình trong terminal
 python main.py --nogui
 
-# Skip setup and open chat directly
+# Bỏ qua bước nhập cấu hình
 python main.py --name Khang
 python main.py --nogui --name Huy --port 5001
 
-# Other shared options
+# Ví dụ với các tùy chọn cấu hình khác
 python main.py --name Khang --port 5001 --bcast 192.168.1.255 --downloads ./received
 ```
 
-When passing any configuration flag, include `--name`. Omitted optional flags use
-their defaults. `--nogui` selects the terminal interface and still opens setup
-when used by itself.
+Khi truyền `--port`, `--bcast` hoặc `--downloads`, hãy truyền kèm `--name`. Các tùy chọn bỏ qua sẽ dùng giá trị mặc định. Nếu chỉ truyền `--nogui`, ứng dụng vẫn hỏi cấu hình trong terminal.
 
-| Argument | Meaning | Default |
+| Tùy chọn | Ý nghĩa | Giá trị mặc định |
 | --- | --- | --- |
-| `--name NAME` | Display name, 1–60 characters | Required |
-| `--port PORT` | TCP listening port | `0` (assigned by the OS) |
-| `--bcast ADDRESS` | UDP broadcast destination | `255.255.255.255` |
-| `--downloads PATH` | Directory for received files | `downloads` |
-| `--nogui` | Force terminal interface | Off |
+| `--name TÊN` | Tên hiển thị, từ 1 đến 60 ký tự | Nhập khi khởi động nếu chưa truyền |
+| `--port CỔNG` | Cổng TCP lắng nghe | `0` (hệ điều hành tự cấp cổng) |
+| `--bcast IP` | Địa chỉ đích để quảng bá UDP | `255.255.255.255` |
+| `--downloads THƯ_MỤC` | Thư mục lưu tệp nhận | `downloads` |
+| `--nogui` | Dùng giao diện dòng lệnh | Tắt |
 
-If Tkinter is unavailable or the display cannot be initialized, the program
-falls back to the CLI when an interactive terminal is available. The CLI uses
-configuration flags if provided and prompts for settings otherwise.
+Nếu Tkinter bị thiếu hoặc không mở được cửa sổ, ứng dụng chuyển sang chế độ dòng lệnh khi có terminal tương tác. Ứng dụng dùng các tùy chọn cấu hình đã truyền hoặc hỏi cấu hình nếu cần.
 
-### GUI
+### Giao diện đồ họa
 
-- Select an online peer in the sidebar; the TCP connection is opened in a background worker.
-- Type a message and press **Enter** or click **Send**.
-- Use **Attach** to choose a file. The progress bar shows the most recent transfer for the selected peer.
-- The peer list displays online/away status and unread message counts. Offline peers previously seen in this session are shown in gray so you can still inspect their in-memory conversation.
-- Close the window to quit and close network connections. Closing during an active transfer cancels it.
+- Chọn một người dùng đang trực tuyến trong thanh bên. Ứng dụng mở kết nối TCP ở luồng nền.
+- Nhập tin nhắn rồi nhấn **Enter** hoặc bấm **Gửi**.
+- Bấm **Đính kèm** để chọn tệp. Thanh tiến độ hiển thị lần truyền tệp gần nhất với người đang được chọn.
+- Danh sách **Người dùng** hiển thị trạng thái và số tin chưa đọc. Người dùng đã ngoại tuyến xuất hiện bằng màu xám để bạn vẫn xem được cuộc trò chuyện trong phiên.
+- Đóng cửa sổ để thoát và ngắt các kết nối. Nếu đang truyền tệp, ứng dụng hỏi trước khi hủy việc truyền và thoát.
 
-Name and network settings are configured at startup. Click the status button in the top right to switch between **Online** and **Away** during a session.
+Tên hiển thị và thiết lập mạng được nhập khi khởi động. Trong phiên chạy, bấm nút trạng thái ở góc trên bên phải để chuyển giữa **Trực tuyến** và **Vắng mặt**.
 
-### CLI commands
+### Lệnh trong terminal
 
-| Command | Description |
+| Lệnh | Mô tả |
 | --- | --- |
-| `/list` | Show online users with number, name, IP and status |
-| `/chat <name\|number>` | Open a chat with the selected user (TCP connection) |
-| `<any text>` | Send a message to the current chat partner |
-| `/send <file>` | Send a file to the current chat partner |
-| `/leave` | Close the current chat |
-| `/status <online\|away>` | Change your status (sent via UDP) |
-| `/help` | Show all commands |
-| `/quit` | Exit the program |
+| `/list` | Xem số thứ tự, tên, địa chỉ IP và trạng thái của người dùng trong mạng |
+| `/chat <tên\|số>` | Mở cuộc trò chuyện qua TCP với người dùng theo tên hoặc số thứ tự |
+| `<tin nhắn>` | Gửi tin nhắn cho người đang trò chuyện |
+| `/send <tệp>` | Gửi tệp cho người đang trò chuyện |
+| `/leave` | Rời cuộc trò chuyện hiện tại |
+| `/status <online\|away>` | Đổi trạng thái thành trực tuyến hoặc vắng mặt. Trạng thái được quảng bá qua UDP |
+| `/help` | Xem danh sách lệnh |
+| `/quit` | Thoát ứng dụng |
 
-## Two-machine testing
+## Thử kết nối trên một hoặc hai máy
 
-The OS assigns a free TCP port by default, including when you run two instances on the same computer. To use fixed TCP ports for a same-computer test, choose a different port for each instance:
+Theo mặc định, hệ điều hành cấp một cổng TCP còn trống cho mỗi phiên chạy. Nếu muốn dùng cổng cố định khi thử hai phiên trên cùng máy, hãy chọn một cổng riêng cho mỗi phiên.
 
 ```bash
 python main.py --name Khang --port 5001 --bcast 127.255.255.255
 python main.py --nogui --name Huy --port 5002 --bcast 127.255.255.255
 ```
 
-Multiple UDP listeners bound to port `9999` on the same host depend on the OS's socket reuse semantics. A real two-computer LAN test is recommended. Capture `udp.port == 9999` for discovery broadcasts and `tcp.port == 5001` for the TCP three-way handshake in Wireshark, substituting the actual listening port.
+Khả năng nhiều phiên cùng lắng nghe cổng UDP `9999` trên một máy phụ thuộc vào cách hệ điều hành cho phép dùng chung cổng. Để thử trong điều kiện thực tế, hãy chạy ứng dụng trên hai máy cùng mạng LAN. Trong Wireshark, lọc `udp.port == 9999` để xem các gói quảng bá tìm người dùng. Lọc `tcp.port == 5001` để xem bắt tay ba bước TCP và thay `5001` bằng cổng lắng nghe thực tế.
 
-## Networking and storage
+## Giao thức và lưu trữ
 
-- UDP: JSON `HELLO` datagram with `id`, `name`, `port`, `status`; broadcast every **3 seconds** on UDP port **9999**. Peer timeout is **10 seconds**.
-- TCP: 4-byte unsigned big-endian JSON frame length followed by UTF-8 JSON. Maximum frame: 256 KiB.
-- Chat: TCP `HELLO` handshake, then `MSG` / `BYE` frames.
-- Files: independent TCP connection, `FILE_META`, raw bytes, and `FILE_ACK` upon successful save. Received files are written via temporary `.part` files and renamed only when complete. Name collisions get suffixes like `(1)`.
-- Peers get a fresh random UUID on each launch. A restarted peer is a **new session**.
-- **Messages exist only in RAM. Quitting permanently clears local chat history.** Received files remain in the configured download folder.
-- Traffic is not encrypted; this is a LAN networking assignment, not a secure messenger.
+- **UDP.** Gói `HELLO` chứa JSON với các trường `id`, `name`, `port` và `status`. Ứng dụng quảng bá mỗi **3 giây** qua cổng UDP **9999**. Sau **10 giây** không nhận được cập nhật, người dùng được đánh dấu ngoại tuyến.
+- **TCP.** Mỗi khung bắt đầu bằng 4 byte ghi độ dài JSON (số nguyên không dấu, big-endian), theo sau là JSON mã hóa UTF-8. Độ dài JSON tối đa là 256 KiB.
+- **Nhắn tin.** Sau khi kết nối TCP, hai bên trao đổi `HELLO`, rồi dùng các khung `MSG` và `BYE`.
+- **Truyền tệp.** Ứng dụng dùng một kết nối TCP riêng để truyền `FILE_META` và dữ liệu tệp. Bên nhận lưu vào tệp tạm `.part`, đổi tên khi nhận đủ dữ liệu rồi gửi `FILE_ACK`. Nếu trùng tên, ứng dụng thêm hậu tố như `(1)`.
+- Mỗi lần khởi động, ứng dụng tạo một UUID mới. Người dùng khởi động lại ứng dụng sẽ được nhận diện là một **phiên mới**.
+- **Tin nhắn chỉ lưu trong RAM. Thoát ứng dụng sẽ xóa lịch sử trò chuyện cục bộ.** Tệp đã nhận vẫn nằm trong thư mục đã chọn.
+- Ứng dụng phục vụ đồ án mạng LAN. Dữ liệu truyền qua mạng ở dạng không mã hóa.
 
-## Tests
+## Kiểm thử
 
 ```bash
 python -m unittest discover -s tests -v
 python -m compileall -q main.py lanchat
 ```
 
-For the final live demo, verify **GUI ↔ GUI**, **GUI ↔ CLI** and **CLI ↔ CLI** on two machines. Ensure that firewalls allow UDP/9999 and the configured TCP port.
+Khi chuẩn bị demo, hãy thử **GUI ↔ GUI**, **GUI ↔ CLI** và **CLI ↔ CLI** trên hai máy. Kiểm tra tường lửa đã cho phép UDP/9999 và cổng TCP lắng nghe.
 
-## Packaging
+## Đóng gói
 
-Build on each target OS with PyInstaller; builds are OS-specific:
+Dùng PyInstaller để tạo tệp thực thi trên từng hệ điều hành đích.
 
 ```bash
 python -m pip install pyinstaller
 python -m PyInstaller --onefile --name LANChat main.py
 ```
 
-Use a **console-enabled executable** so command-line arguments, `--nogui` and CLI fallback remain usable. Launch it from a terminal, e.g. `./dist/LANChat --name Khang` (or `dist\\LANChat.exe --name Khang` on Windows). A Windows `--windowed` build cannot provide an interactive CLI fallback.
+Tạo bản thực thi có console để dùng các tùy chọn dòng lệnh, chạy với `--nogui` và chuyển sang CLI nếu GUI không mở được. Chạy từ terminal, ví dụ `./dist/LANChat --name Khang` trên Linux hoặc `dist\\LANChat.exe --name Khang` trên Windows. Bản Windows đóng gói với `--windowed` thiếu console cho chế độ CLI tương tác.

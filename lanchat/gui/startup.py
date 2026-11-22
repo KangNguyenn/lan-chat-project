@@ -23,21 +23,21 @@ class StartupForm(ttk.Frame):
         self.pack(fill="both", expand=True)
         self.columnconfigure(0, weight=1)
 
-        ttk.Label(self, text="Start LAN Chat", font=("TkDefaultFont", 18, "bold")).grid(
+        ttk.Label(self, text="Khởi động LAN Chat", font=("TkDefaultFont", 18, "bold")).grid(
             row=0, column=0, sticky="w", pady=(0, 16))
-        self.name_entry = self._add_entry(self, 1, "Display name", self.name)
-        self.port_entry = self._add_entry(self, 3, "TCP listening port", self.port)
-        ttk.Label(self, text="Use 0 to choose a port automatically.").grid(
+        self.name_entry = self._add_entry(self, 1, "Tên hiển thị", self.name)
+        self.port_entry = self._add_entry(self, 3, "Cổng TCP lắng nghe", self.port)
+        ttk.Label(self, text="Nhập 0 để tự động chọn cổng.").grid(
             row=5, column=0, sticky="w")
 
-        self.advanced_button = ttk.Button(self, text="▸ Advanced settings", command=self._toggle_advanced)
+        self.advanced_button = ttk.Button(self, text="▸ Cài đặt nâng cao", command=self._toggle_advanced)
         self.advanced_button.grid(row=6, column=0, sticky="w", pady=(16, 8))
         self.advanced = ttk.Frame(self, padding=(12, 4))
         self.advanced.columnconfigure(0, weight=1)
         self.advanced.grid(row=7, column=0, sticky="ew")
-        self._add_entry(self.advanced, 0, "UDP broadcast address", self.bcast)
-        self._add_entry(self.advanced, 2, "Downloads folder", self.downloads)
-        ttk.Button(self.advanced, text="Browse…", command=self._browse).grid(
+        self._add_entry(self.advanced, 0, "Địa chỉ quảng bá UDP", self.bcast)
+        self._add_entry(self.advanced, 2, "Thư mục lưu tệp nhận", self.downloads)
+        ttk.Button(self.advanced, text="Chọn…", command=self._browse).grid(
             row=3, column=1, sticky="ew", padx=(8, 0), pady=(3, 8))
         self.advanced.grid_remove()
 
@@ -45,8 +45,8 @@ class StartupForm(ttk.Frame):
             row=8, column=0, sticky="w")
         actions = ttk.Frame(self)
         actions.grid(row=9, column=0, sticky="e", pady=(12, 0))
-        ttk.Button(actions, text="Cancel", command=self.cancel).pack(side="left")
-        ttk.Button(actions, text="Start chat", command=self._submit).pack(side="left", padx=(8, 0))
+        ttk.Button(actions, text="Hủy", command=self.cancel).pack(side="left")
+        ttk.Button(actions, text="Bắt đầu", command=self._submit).pack(side="left", padx=(8, 0))
         self.name_entry.focus_set()
 
     def _add_entry(self, parent, row, label, variable):
@@ -59,13 +59,13 @@ class StartupForm(ttk.Frame):
     def _toggle_advanced(self):
         if self.advanced.winfo_manager():
             self.advanced.grid_remove()
-            self.advanced_button.configure(text="▸ Advanced settings")
+            self.advanced_button.configure(text="▸ Cài đặt nâng cao")
         else:
             self.advanced.grid()
-            self.advanced_button.configure(text="▾ Advanced settings")
+            self.advanced_button.configure(text="▾ Cài đặt nâng cao")
 
     def _browse(self):
-        directory = filedialog.askdirectory(parent=self.root)
+        directory = filedialog.askdirectory(parent=self.root, title="Chọn thư mục lưu tệp nhận")
         if directory:
             self.downloads.set(directory)
 

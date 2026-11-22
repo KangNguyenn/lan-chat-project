@@ -13,7 +13,7 @@ class StartupConfig:
 def parse_name(value):
     name = value.strip()
     if not 1 <= len(name) <= 60:
-        raise ValueError("Display name must contain 1 to 60 characters")
+        raise ValueError("Tên hiển thị phải có từ 1 đến 60 ký tự.")
     return name
 
 
@@ -21,7 +21,7 @@ def parse_port(value):
     try:
         port = int(value)
     except ValueError:
-        raise ValueError("TCP port must be an integer between 0 and 65535") from None
+        raise ValueError("Cổng TCP phải là số nguyên từ 0 đến 65535.") from None
     if not 0 <= port <= 65535:
-        raise ValueError("TCP port must be between 0 and 65535")
+        raise ValueError("Cổng TCP phải nằm trong khoảng từ 0 đến 65535.")
     return port

@@ -39,7 +39,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertIsNone(store.get("bad"))
         store.expire(timeout=-1)
         self.assertIsNone(store.get("p"))
-        self.assertTrue(any("offline" in x for x in events))
+        self.assertTrue(any("ngoại tuyến" in x for x in events))
 
     def test_two_listeners_cannot_bind_same_tcp_port(self):
         a = LanChatApp("Ann", port=0, broadcast="127.255.255.255", notify=lambda _: None)
