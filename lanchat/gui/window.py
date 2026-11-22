@@ -57,8 +57,12 @@ class LanChatWindow:
 
         ttk.Label(sidebar, text="Người dùng", font=("TkDefaultFont", 11, "bold")).grid(
             row=0, column=0, sticky="w", pady=(0, 4))
+        peer_style = ttk.Style(root)
+        peer_row_font = font.nametofont("TkDefaultFont", root=root)
+        peer_style.configure("Peers.Treeview", rowheight=peer_row_font.metrics("linespace") + 6)
         self.peer_list = ttk.Treeview(sidebar, columns=("status", "unread"),
-                                     show="tree headings", selectmode="browse", height=4)
+                                     show="tree headings", selectmode="browse", height=4,
+                                     style="Peers.Treeview")
         self.peer_list.heading("#0", text="Tên")
         self.peer_list.heading("status", text="Trạng thái")
         self.peer_list.heading("unread", text="Tin mới")
