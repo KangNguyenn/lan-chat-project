@@ -13,7 +13,7 @@ from .transfer import TransferManager
 
 class LanChatApp:
     def __init__(self, name, port=StartupConfig.port, broadcast="255.255.255.255", notify=print,
-                 downloads="downloads", event_sink=None):
+                 downloads=StartupConfig.downloads, event_sink=None):
         if not name or len(name) > 60:
             raise ValueError("Tên hiển thị phải có từ 1 đến 60 ký tự.")
         self.identity = uuid.uuid4().hex
